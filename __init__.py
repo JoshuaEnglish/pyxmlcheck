@@ -1,4 +1,0 @@
-
-
-
-from XMLCheck import *
