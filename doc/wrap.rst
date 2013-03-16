@@ -1,4 +1,4 @@
-`wrap` --- Creating an object around the checker
+`Wrap` --- Creating an object around the checker
 =====================================================
 
 .. module:: xcheck
@@ -6,10 +6,10 @@
     :platform: All
 .. moduleauthor:: Josh English <Joshua.R.English@gmail.com>
 
-wrap
+Wrap
 ====================
 
-The wrap object is not derived from XCheck, but wraps a regular Python object
-around the Element object.
+The Wrap object is not derived from XCheck, but wraps a regular Python object
+around an Element object.
 
-The ad
+:class:`Wrap`

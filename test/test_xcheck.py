@@ -1478,4 +1478,6 @@ class TestWrap3(unittest.TestCase):
         self.assertEqual(empty_example._get_elem_value('item'),'one')
 
 if __name__=='__main__':
+    import xcheck
+    print xcheck
     unittest.main(verbosity=0)
