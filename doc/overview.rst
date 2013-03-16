@@ -1,7 +1,7 @@
 Overview
 ========
 
-:mod:`xcheck` is used to validate xml in Python. No other code is required.
+:mod:`xcheck` is used to validate xml in Python. It requires elementree version 1.1.3.
 
 :class:`XCheck` objects can:
 
@@ -21,7 +21,7 @@ to validate XML-Data, which, as I see it, as a few limitations:
 * Spaces around an element's text is ignored. This means <x>a</a> and <x> a </x> are considered the same element and validate the same.
 
 
-Currently, :class:`xcheck` objects do not deal with namespaces.
+Currently, :class:`XCheck` objects do not deal with namespaces.
 
 :class:`XCheck` objects are called directly to check data. ::
     
@@ -70,7 +70,7 @@ The :mod:`xcheck` module defines the following classes:
 
 :class:`BoolCheck`
 
-    Checker for boolian values
+    Checker for boolean values
 
 :class:`SelectionCheck`
 
@@ -92,11 +92,11 @@ The :mod:`xcheck` module defines the following classes:
 
     Checker for dates and times
 
-:class:`wrap`
+:class:`Wrap`
 
-    :class:`wrap` provides an interface between a checker and an element. ::
+    :class:`Wrap` provides an interface between a checker and an element. ::
 
-    >>> from xcheck import XCheck, TextCheck, wrap
+    >>> from xcheck import XCheck, TextCheck, Wrap
     >>> first = TextCheck('first', minLength = 2)
     >>> last = TextCheck('last', minLength = 2)
     >>> nameCh = XCheck('name', children = [first, last])
@@ -110,9 +110,11 @@ The :mod:`xcheck` module defines the following classes:
     <name><first>Josh</first><last>English</last></name>
     >>> nameCh(name)
     True
-    >>> nameObj = wrap(nameCh, name)
+    >>> nameObj = Wrap(nameCh, name)
     >>> nameObj._get_elem_value('first')
     'Josh'
     >>> nameObj._get_elem_value('last')
     'English'
     >>> 
+
+    The :class:`Wrap` class can be subclassed to provide more meaninful attributes.
