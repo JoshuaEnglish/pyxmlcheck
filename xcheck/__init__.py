@@ -58,5 +58,7 @@ from datetimecheck import DatetimeCheck
 from wrap import Wrap
 from loader import load_checker
 
+from infinity import INF, NINF
+
 if __name__=='__main__':
     print dir()

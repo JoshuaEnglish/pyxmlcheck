@@ -1,4 +1,4 @@
-
+import logging
 import collections
 
 if hasattr(collections, "OrderedDict"):
@@ -370,18 +370,19 @@ class XCheck(object):
         elem = None
         if ET.iselement(arg):
             elem = arg
+
         if elem is None:
             try:
-                logging.debug('converting')
+                logging.info('converting')
                 elem = ET.fromstring(arg)
-                logging.debug("element: %s" % ET.fromstring(elem))
+                arg = elem.text
+                logging.info("element: %s" % ET.fromstring(elem))
             except:
                 pass
 
-
-
         # validate element if appropriate
         if elem is not None:
+            logging.debug(' validating element')
             ok = elem.tag == self.name
             if not ok:
                 text = "Element tag does not match check name"
@@ -391,8 +392,7 @@ class XCheck(object):
                 ok &= self.check_content(content.strip())
             #~ Check the attributes
             atts = dict(self.attributes) # create a copy to play with
-            if verbose:
-                print "xcheck.attributes", atts
+            logging.info('checking attributes: %s', atts)
 
             for key, val in elem.items():
                 ch = atts.pop(key, None)
@@ -525,6 +525,7 @@ class XCheck(object):
                             raise UnexpectedChildError(
                                 "Too many %s children" % child.name)
         else:
+            logging.debug(' validating non-element atom')
             ok = self.check_content(arg)
 
         #~ restore saved check_children value
@@ -541,9 +542,15 @@ class XCheck(object):
 
     def insert_node(self, parent, child):
         """insert_node(parent, child)
+
         Takes a node and inserts a child node, based on the organiziational
-        rules of the checker
-        Only works on first generation children!
+        rules of the checker.
+
+        :param parent, child: ElementTree.Elements to manipulate
+
+        .. warning::
+
+            Only works on first-generation children of the checker!
         """
         if parent.tag != self.name:
             raise self.error(
@@ -584,7 +591,13 @@ class XCheck(object):
 
     def sort_children(self, parent, child_name, sortkey, reverse=False):
         """sort_children(parent, child_name, sortkey, reverse=False)
-        Sorts children of a node according to sortkey
+
+        Sorts children of a node according to sortkey.
+
+        :param parent: ElementTree.Element
+        :param child_name: string
+        :param sortkey: passed to a call to sorted
+        :param reverse: passet to a call to sorted
         """
         if sortkey is None:
             return None
@@ -599,10 +612,13 @@ class XCheck(object):
         for child in sorted(children, key=sortkey, reverse=reverse):
             self.insert_node( parent, child)
 
-    def to_definition_node(self, n = 0):
-        """to_definition_node() -> ET.Element
+    def to_definition_node(self, n=0):
+        """to_definition_node([n=0])
+
         Creates an ElementTree.Element that represents the checker tree,
         not data that can be checked by the checker.
+
+        This is a recursive fuction.
         """
         name_ = self.__class__.__name__.lower().replace('check', '')
         if name_ == 'x':
@@ -690,8 +706,12 @@ class XCheck(object):
 
     def dummy_value(self):
         """dummy_value()
-        returns a value that should pass the checker.
+
+        Returns a value that should pass the checker.
+
         Not applicable to XCheck objects.
+
+        Subclasses should override this method.
 
         """
         return None

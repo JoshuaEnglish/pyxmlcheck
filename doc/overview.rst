@@ -1,7 +1,8 @@
 Overview
 ========
 
-:mod:`xcheck` is used to validate xml in Python. It requires elementree version 1.1.3.
+:mod:`xcheck` is used to validate xml in Python. It requires ElementTree
+version 1.1.3. Most features can be used with other versions of ElementTree.
 
 :class:`XCheck` objects can:
 
@@ -13,7 +14,7 @@ Overview
         * ElementTree.Element objects
         * Text representing an ElementTree.Element object
 
-There are a few rules about the assumptions xcheck uses. :mod:`xcheck` is designed 
+There are a few rules about the assumptions xcheck uses. :mod:`xcheck` is designed
 to validate XML-Data, which, as I see it, as a few limitations:
 
 * No Meaningful Mixed Content: an element has either text or children, but not both.
@@ -21,16 +22,17 @@ to validate XML-Data, which, as I see it, as a few limitations:
 * Spaces around an element's text is ignored. This means <x>a</a> and <x> a </x> are considered the same element and validate the same.
 
 
-Currently, :class:`XCheck` objects do not deal with namespaces.
+.. note ::
+    Currently, :class:`XCheck` objects do not deal with namespaces.
 
-:class:`XCheck` objects are called directly to check data. ::
-    
+:class:`XCheck` objects are called directly to check data::
+
     >>> from xcheck import TextCheck
     >>> nameCh = TextCheck('name', minLength = 2)
     >>> nameCh('Josh')
     True
     >>> nameCh('J')
-    
+
     Traceback (most recent call last):
       File "<pyshell#3>", line 1, in <module>
         name('J')
@@ -48,14 +50,14 @@ Currently, :class:`XCheck` objects do not deal with namespaces.
     <name>Josh</name>
     >>> nameCh(josh)
     True
-    >>> 
+    >>>
 
 The :mod:`xcheck` module defines the following classes:
 
 :class:`XCheck`
-        
+
     The base checker. Used only for parent nodes.
-    
+
 :class:`TextCheck`
 
     Checker for generic text
@@ -63,7 +65,7 @@ The :mod:`xcheck` module defines the following classes:
 :class:`EmailCheck`
 
     Checker for email addresses
-    
+
 :class:`URLCheck`
 
     Checker for URLs (web address)
@@ -76,6 +78,10 @@ The :mod:`xcheck` module defines the following classes:
 
     Checker for data from a selection of acceptable values.
 
+:class:`ListCheck`
+
+    Checker for list-formatted strings
+
 :class:`IntCheck`
 
     Checker for integer values
@@ -84,17 +90,13 @@ The :mod:`xcheck` module defines the following classes:
 
     Checker for float values
 
-:class:`ListCheck`
-
-    Checker for list-formatted strings
-
 :class:`DateTimeCheck`
 
     Checker for dates and times
 
 :class:`Wrap`
 
-    :class:`Wrap` provides an interface between a checker and an element. ::
+    :class:`Wrap` provides an interface between a checker and an element::
 
     >>> from xcheck import XCheck, TextCheck, Wrap
     >>> first = TextCheck('first', minLength = 2)
@@ -107,7 +109,7 @@ The :mod:`xcheck` module defines the following classes:
     >>> lname = ET.SubElement(name, 'last')
     >>> lname.text = 'English'
     >>> ET.dump(name)
-    <name><first>Josh</first><last>English</last></name>
+    '<name><first>Josh</first><last>English</last></name>'
     >>> nameCh(name)
     True
     >>> nameObj = Wrap(nameCh, name)
@@ -115,6 +117,12 @@ The :mod:`xcheck` module defines the following classes:
     'Josh'
     >>> nameObj._get_elem_value('last')
     'English'
-    >>> 
 
-    The :class:`Wrap` class can be subclassed to provide more meaninful attributes.
+
+    The :class:`Wrap` class can be subclassed to provide more meaninful
+    attributes.
+
+:func:`load_checker`
+
+    Creates an :class:`XCheck` object from a definiton node. The rules for
+    creating a definiton node are outlined in Loading From Definition Nodes

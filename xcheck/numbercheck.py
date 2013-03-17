@@ -3,7 +3,22 @@ import logging
 from xcheck import XCheck, XCheckError
 from infinity import INF, NINF
 
+
 class IntCheck(XCheck):
+    """IntCheck(name[, min, max])
+
+    IntCheck checks attributes and elements containing integer data.
+
+    :param name: name of the xml tag
+    :type name: string
+    :param min: minimum value for the checker
+    :type min: integer or NINF
+    :param max: maximum value for the checker
+    :type max: integer or INF
+
+    The max and min attributes are inclusive, they default to NINF and INF,
+    respectively.
+    """
     def __init__(self, name, **kwargs):
         self.min = NINF
         self.max = INF
@@ -18,17 +33,16 @@ class IntCheck(XCheck):
             self._normalized_value = str(self._normalized_value)
 
     def check_content(self, item):
-        logger = logging.getLogger()
-        logger.setLevel(logging.DEBUG)
+        logging.debug("check_content(%s) type %s" % (item, type(item)))
         ok = None
         try:
+            if isinstance(item, basestring):
+                item = float(item)
             data = int(item)
         except:
             ok = False
-            logging.error("%s is not an integer (type %s)" % (
-                item,
-                type(item)))
             raise ValueError("item not an integer")
+
         if float(item) != int(item):
             ok = False
             raise TypeError("cannot convert float")
@@ -54,6 +68,21 @@ class IntCheck(XCheck):
         return '0' if self.min == NINF else str(self.min)
 
 class DecimalCheck(XCheck):
+    """DecimalCheck(name[, min, max])
+
+    DicimalCheck checks attributes and elements containing float data.
+
+    :param name: name of the xml tag
+    :type name: string
+    :param min: minimum value for the checker
+    :type min: integer or NINF
+    :param max: maximum value for the checker
+    :type max: integer or INF
+
+    The max and min attributes are inclusive, they default to NINF and INF,
+    respectively.
+    """
+
     def __init__(self, name, **kwargs):
         self.min = NINF
         self.max = INF
@@ -89,8 +118,92 @@ class DecimalCheck(XCheck):
     def dummy_value(self):
         return '0' if self.min == NINF else str(self.min)
 
+
+import unittest
+from xcheck import ET
+
+class IntCheckTC(unittest.TestCase):
+    "These test if the defaults are created properly"
+    def setUp(self):
+        self.t = IntCheck('test', min=1, max = 10)
+    def tearDown(self):
+        del self.t
+
+    #~ valid input tests
+    def test_pass_with_integer(self):
+        "IntCheck() accepts in-bounds integer"
+        self.failUnless(self.t( 9))
+
+    def test_pass_with_valid_string(self):
+        "IntCheck() accepts integer-equivalent string"
+        self.failUnless(self.t( '6'))
+
+    def test_pass_with_valid_float(self):
+        "IntCheck() accepts with integer-equivalent float"
+        self.failUnless(self.t( 6.0 ) )
+
+    def test_pass_with_valid_float_string(self):
+        "IntCheck() accepts strings of integer-equivalent floats"
+        self.failUnless(self.t('6.0'))
+
+    def test_pass_with_element(self):
+        "IntCheck() accepts valid element.text"
+        self.failUnless(self.t(ET.fromstring('<test>4</test>')))
+
+    def test_pass_with_xml(self):
+        "IntCheck() accepts valid xml strings"
+        self.failUnless(self.t('<test>4</test>'))
+
+    #~ bad input tests
+    def test_fail_with_empty_string(self):
+        "IntCheck() raises ValueError when passed an empty string when required"
+        self.assertRaises(ValueError, self.t, '')
+
+    def test_fail_with_oob_int(self):
+        "IntCheck() fails with out-of-bounds integer"
+        self.assertRaises(self.t.error, self.t, -4)
+
+    def test_fail_with_float(self):
+        "IntCheck() raises TypeError when passed with non-integral float"
+        self.assertRaises(TypeError, self.t, 5.6)
+
+    def test_fail_with_oob_string(self):
+        "IntCheck() fails with out-of-bounds integral string"
+        self.assertRaises(self.t.error, self.t, '45')
+
+    def test_fail_with_float_string(self):
+        "IntCheck() fails when passed float-equivalent string"
+        self.assertRaises(TypeError, self.t, '5.6')
+
+    def test_fail_with_float_elem(self):
+        "IntCheck() raises ValueError with element.text as non-integral float"
+        self.assertRaises(TypeError, self.t, ET.fromstring('<test>5.5</test>') )
+
+    def test_fail_with_float_elem_string(self):
+        "IntCheck() fails with xml-formatting string as non integral float"
+        self.assertRaises(TypeError, self.t, '<test>5.4</test>')
+
+    def test_fail_with_oob_element(self):
+        "IntCheck() fails with element.text as out-of-bounds integer"
+        self.assertRaises(self.t.error, self.t, ET.fromstring('<test>99</test>'))
+
+    def test_fail_with_oob_element_string(self):
+        "IntCheck() fails with xml-formattet sting with out of bounds integer"
+        self.assertRaises(self.t.error, self.t, '<test>99</test>')
+
+    def test_fail_with_non_integer(self):
+        "IntCheck() fails with a non-integer"
+        self.assertRaises(ValueError, self.t, 'a')
+
+    def test_normalization(self):
+        self.assertEqual(self.t('9', normalize=True), 9,
+            "IntCheck normalized bunged a string")
+        self.assertEqual(self.t(9, normalize=True), 9,
+            "IntCheck normalize bunged an integer")
+
+
 if __name__=='__main__':
-    i = IntCheck('value')
-    c = DecimalCheck('cost')
-    print i
-    print c
+    logger = logging.getLogger()
+    logger.setLevel(logging.CRITICAL)
+
+    unittest.main(verbosity=1)

@@ -733,77 +733,80 @@ class ListCheckTC(unittest.TestCase):
         self.l.min_items = 2
         self.assertEqual(self.l.dummy_value(), "a,b")
 
-class DateTimeCheckTC(unittest.TestCase):
+class DatetimeCheckTC(unittest.TestCase):
     def setUp(self):
-        self.d = DateTimeCheck('date')
+        self.d = DatetimeCheck('date')
 
     def tearDown(self):
         del self.d
 
     def testDefaults(self):
-        "DateTimeCheck creates appropriate default values"
+        "DatetimeCheck creates appropriate default values"
         self.assertFalse(self.d.allow_none, "allow_none not False")
         self.assertEqual(self.d.format, "%a %b %d %H:%M:%S %Y", "format not the default")
         self.assertEqual(self.d.formats, [], "formats not an empty list")
 
     def testCustomizedAttributes(self):
-        "DateTimeCheck customizes attrbutes"
-        d = DateTimeCheck('date', allow_none=True, format="%b-%d-%Y",
+        "DatetimeCheck customizes attrbutes"
+        d = DatetimeCheck('date', allow_none=True, format="%b-%d-%Y",
             formats = ['%d-%m-%Y',])
         self.assertTrue(d.allow_none, "allow_none not customized")
         self.assertEqual(d.format, '%b-%d-%Y', 'format not customised')
         self.assertEqual(d.formats, [ '%d-%m-%Y'])
 
     def testDefaultFormat(self):
-        "DateTimeCheck() accepts the default datetime"
+        "DatetimeCheck() accepts the default Datetime"
         self.failUnless(self.d('Mon Oct 26 22:20:43 2009'), "cannot parse default date")
 
     def testCustomFormat(self):
-        "DateTimeCheck() accepts a custom format"
-        d = DateTimeCheck('test', format="%Y%m%d%H%M%S")
+        "DatetimeCheck() accepts a custom format"
+        d = DatetimeCheck('test', format="%Y%m%d%H%M%S")
         self.failUnless(d('20090101122042'), 'cannot parse custom date')
 
-    def testDateTimeObject(self):
-        "DateTimeCheck() returns a datetime.datetime object when requested"
-        dt = self.d("Mon Oct 26 14:52:42 2009", as_datetime=True)
-        self.assertTrue(isinstance(dt, datetime.datetime), "Did not return a datetime.datetime object")
+    def testDatetimeObject(self):
+        "DatetimeCheck() returns a Datetime.Datetime object when requested"
+        dt = self.d("Mon Oct 26 14:52:42 2009", as_Datetime=True)
+        self.assertTrue(isinstance(dt, Datetime.Datetime), "Did not return a Datetime.Datetime object")
 
     def testTimeStructObject(self):
-        "DateTimeCheck() returns a time.struct_time object when requested"
+        "DatetimeCheck() returns a time.struct_time object when requested"
         dt = self.d("Mon Oct 26 09:00:00 2009", as_struct=True)
         self.assertTrue(isinstance(dt, time.struct_time), "Did not return a time.struct_time object")
 
     def testTimeStringResult(self):
-        "DateTimeCheck() returns a string by default"
+        "DatetimeCheck() returns a string by default"
         dt = self.d("Sat Jul 14 11:00:00 2001")
         self.assertTrue(isinstance(dt, basestring), "Did not return a string by default")
 
     def testBooleanResult(self):
-        "DateTimeCheck() return a boolean if all _asXXX options are false"
+        "DatetimeCheck() return a boolean if all _asXXX options are false"
         dt = self.d("Sat Jul 14 11:00:00 2001", as_string = False)
         self.assertTrue(isinstance(dt, bool), "Did not return a boolean")
 
     def testDateOutOfBounds(self):
-        "DateTimeCheck() fails if date is out of range"
-        d = DateTimeCheck('test', format="%m/%d/%Y", minDateTime = "10/1/2009", maxDateTime = "10/31/2009")
+        "DatetimeCheck() fails if date is out of range"
+        d = DatetimeCheck('test', format="%m/%d/%Y",
+            min_datetime = "10/1/2009",
+            max_datetime = "10/31/2009")
         self.assertRaises(self.d.error, d, "9/30/2009")
 
     def testMonthAndDayOnly(self):
-        "DateTimeCheck() accepts month and day only"
-        d = DateTimeCheck('mday', format="%b %d", minDateTime="Oct 10", maxDateTime="Oct 20")
+        "DatetimeCheck() accepts month and day only"
+        d = DatetimeCheck('mday', format="%b %d", min_datetime="Oct 10",
+            max_datetime="Oct 20")
         self.failUnless(d('Oct 12'), "Cannot accept month and day only")
         self.assertRaises(d.error, d, 'Oct 9')
         self.assertRaises(d.error, d, 'Nov 1')
 
     def testFormatLists(self):
-        "DateTimeCheck() handles a list of formats"
-        d = DateTimeCheck('formatlist', formats=['%b %d', '%b %d %Y'])
-        self.failUnless(d('Oct 1'), "DateTimeCheck() cannot handle the first format")
-        self.failUnless(d('Jan 1 2000'), "DateTimeCheck() cannot handle the second format")
+        "DatetimeCheck() handles a list of formats"
+        d = DatetimeCheck('formatlist', formats=['%b %d', '%b %d %Y'])
+        self.failUnless(d('Oct 1'), "DatetimeCheck() cannot handle the first format")
+        self.failUnless(d('Jan 1 2000'), "DatetimeCheck() cannot handle the second format")
 
     def testAllowNone(self):
-        "DateTimeCheck() allows None, optionally"
-        d = DateTimeCheck('date', allow_none = True)
+        "DatetimeCheck() allows None, optionally"
+        d = DatetimeCheck('date', allow_none = True)
         self.failUnless(d('None'), "Fails to accept string None")
         self.failUnless(d(None), "Fails to accept None type")
         self.failUnless(d('<date>None</date>'), "Fails to accept string-node")
@@ -1089,11 +1092,11 @@ class XChildWrapTC(unittest.TestCase):
         self.assertEqual(w1._get_elem_value('street'), '318 West Nowhere Ln')
 
 class DummyValueTC(unittest.TestCase):
-    def test_datetimedummy(self):
-        "DateTimeCheck.dummy_value() should return the minimum date"
-        import datetime
-        mindate = datetime.datetime.min.replace(year=1900)
-        d = DateTimeCheck('name')
+    def test_Datetimedummy(self):
+        "DatetimeCheck.dummy_value() should return the minimum date"
+        import Datetime
+        mindate = Datetime.Datetime.min.replace(year=1900)
+        d = DatetimeCheck('name')
         self.assertEqual(mindate.strftime(d.format), d.dummy_value())
 
     def test_intdummy(self):
@@ -1404,14 +1407,14 @@ class LoaderTC(unittest.TestCase):
         self.assertTrue(ch.allow_duplicates)
         self.assertTrue(ch.ignore_case)
 
-    def test_datetime(self):
+    def test_Datetime(self):
         ch = load_checker('<datetime name="sent" />')
         self.assertFalse(ch.allow_none)
         self.assertEqual(ch.format ,'%a %b %d %H:%M:%S %Y')
         self.assertEqual(ch.formats, [])
-        self.assertEqual(ch.min_datetime,datetime.datetime(1900,1,1))
-        self.assertEqual(ch.max_datetime,datetime.datetime.max)
-        self.assertIsInstance(ch, DateTimeCheck)
+        self.assertEqual(ch.min_datetime,Datetime.Datetime(1900,1,1))
+        self.assertEqual(ch.max_datetime,Datetime.Datetime.max)
+        self.assertIsInstance(ch, DatetimeCheck)
 
     def test_attributes(self):
         text= """<xcheck name="person">
