@@ -1,10 +1,7 @@
 `Wrap` --- Creating an object around the checker
 =====================================================
 
-.. module:: xcheck
-    :synopsis: XML validation tools
-    :platform: All
-.. moduleauthor:: Josh English <Joshua.R.English@gmail.com>
+.. py:currentmodule:: xcheck
 
 Wrap
 ----
@@ -12,4 +9,9 @@ Wrap
 The Wrap object is not derived from XCheck, but wraps a regular Python object
 around an Element object.
 
-:class:`Wrap`
+.. autoclass:: Wrap
+
+The :class:`Wrap` class is more useful when subclassed:
+
+.. literalinclude:: /../examples/rolodex.py
+

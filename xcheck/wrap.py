@@ -6,12 +6,12 @@ class Wrap(object):
     Creates a object Wrapper around an element that must validate to the
     checker object.
 
-    Arguments:
-    :param checker: an XCheck instance. Should not be an instance of a sub-class
-    :type checker: XCheck
-    :param element: An ElementTree:Element or string representation of an
-    ElementTree.Element
-    :type element
+    Arguments::
+
+        :param checker: an XCheck instance. Should not be an instance of a sub-class
+        :type checker: XCheck
+        :param element: Data to be wrapped
+        :type element: ElementTree.Element, a string representation, or None
     """
     def __init__(self, ch, elem=None):
         ch(elem)

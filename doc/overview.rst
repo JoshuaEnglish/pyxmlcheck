@@ -54,49 +54,26 @@ to validate XML-Data, which, as I see it, as a few limitations:
 
 The :mod:`xcheck` module defines the following classes:
 
-:class:`XCheck`
+=============== ===========================================
+Checker 	Data to be checked
+=============== ===========================================
+XCheck		The base checker, used for parent XML nodes
+TextCheck	Generic texts
+EmailCheck	Email Addresses
+URLCheck	URLs
+IntCheck	Integers
+DecimalCheck	Floats
+DatetimeCheck	Dates and times
+BoolCheck	Boolean values
+SelectionCheck	Choice of various strings
+ListCheck	Lists of strings with filtering
+=============== ===========================================
 
-    The base checker. Used only for parent nodes.
-
-:class:`TextCheck`
-
-    Checker for generic text
-
-:class:`EmailCheck`
-
-    Checker for email addresses
-
-:class:`URLCheck`
-
-    Checker for URLs (web address)
-
-:class:`BoolCheck`
-
-    Checker for boolean values
-
-:class:`SelectionCheck`
-
-    Checker for data from a selection of acceptable values.
-
-:class:`ListCheck`
-
-    Checker for list-formatted strings
-
-:class:`IntCheck`
-
-    Checker for integer values
-
-:class:`DecimalCheck`
-
-    Checker for float values
-
-:class:`DateTimeCheck`
-
-    Checker for dates and times
 
 :class:`Wrap`
 
-    :class:`Wrap` provides an interface between a checker and an element::
+    :class:`Wrap` provides an interface between a checker and an element,
+    creating a Python object::
 
     >>> from xcheck import XCheck, TextCheck, Wrap
     >>> first = TextCheck('first', minLength = 2)

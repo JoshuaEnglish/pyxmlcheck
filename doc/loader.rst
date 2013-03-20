@@ -21,7 +21,7 @@ complicated code that is harder to parse, as in this simple rolodex entry:
     street = TextCheck('street')
     city = TextCheck('city')
 
-    address = XCheck('address', children = [street, city, email], max_occurs = 4)
+    address = XCheck('address', children=[street, city, email], max_occurs=4)
 
     dude = XCheck('dude', children=[name, address],
         help="A simple contact list item")

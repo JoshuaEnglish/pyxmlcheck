@@ -47,14 +47,14 @@ ListCheck --- Multiple Enumerated Values
     :type delimiter: string
     :param values: acceptable values for the list items
     :type values: list
-    :param allowDuplicates: dictates if list items must be unique
-    :type allowDuplicates: boolean
-    :param minItems: minimum number of items that should be in the list
-    :type minItems: integer
-    :param maxItems: maximum number of items that should be allowed in the list
-    :type maxItems: integer
-    :param ignoreCase: determines if case should matter when validating items
-    :type ignoreCase: boolean
+    :param allow_duplicates: determines if list items must be unique
+    :type allow_dupliates: boolean
+    :param min_items: minimum number of items that should be in the list
+    :type min_items: integer
+    :param max_items: maximum number of items that should be allowed in the list
+    :type max_items: integer
+    :param ignore_case: determines if case should matter when validating items
+    :type ignore_case: boolean
 
     .. attribute:: values
     
@@ -62,4 +62,6 @@ ListCheck --- Multiple Enumerated Values
         as the other attribute checks pass.
     
 There isn't much difference between :class:`SelectionCheck` and 
-:class:`ListCheck`. Future versions may combine them into one class.
+:class:`ListCheck`. Future versions may combine them into one class. A :class:`ListCheck`
+object is not much more than a :class:`SelectionCheck` object that can read more than 
+one item.

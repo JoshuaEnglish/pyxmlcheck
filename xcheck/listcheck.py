@@ -159,9 +159,150 @@ class ListCheck(XCheck):
             from string import lowercase
             return self.delimiter.join(lowercase[:self.min_items])
 
+import unittest
+from xcheck import ET
+
+class SelectionCheckTC(unittest.TestCase):
+    def setUp(self):
+        self.s = SelectionCheck('choice', values=['alpha','beta','gamma'])
+
+    def tearDown(self):
+        del self.s
+
+    def testDefaultAttributes(self):
+        "SelectionCheck creates appropriate default attrubutes"
+        self.assertTrue(self.s.ignore_case, "ignore_case not True")
+
+    def testCustomAttributes(self):
+        "SelectionCheck customizes attributes"
+        s = SelectionCheck('choice', values=['a', 'b'], ignore_case = False)
+        self.assertFalse(s.ignore_case, "ignore_case not customized")
+
+    def testFailWithoutValues(self):
+        "SelectionCheck raises NoSelectionError if not given any values"
+        self.assertRaises(NoSelectionError, SelectionCheck, 'choices')
+
+    def testFailWithEmptyListForValues(self):
+        "SelectionCheck raises NoSelectionError if values is an empty list"
+        self.assertRaises(NoSelectionError, SelectionCheck, 'choices', values = [])
+
+    def testFailWithNonListForValues(self):
+        "SelectionCheck() raises BadSelectionsError if values is not iterable"
+        self.assertRaises(BadSelectionsError, SelectionCheck, 'choices', values=None)
+
+    def testFailWithNonCaseSensitiveChoice(self):
+        "SelectionCheck() fails if case doesn't match and ignore_case is False"
+        self.s.ignore_case = False
+        self.assertRaises(self.s.error, self.s, 'Alpha')
+
+    def testPassWithNonCaseSensitiveChoice(self):
+        "SelectionCheck() accepts value in list without case match and caseSensitive is False"
+        self.s.ignore_case = True
+        self.failUnless(self.s('Alpha'))
+
+    def testPassWithElementText(self):
+        "SelectionCheck() accepts appropriate xml-formmated text"
+        self.failUnless(self.s('<choice>alpha</choice>'))
+
+    def testPassWithElement(self):
+        "SelectionCheck() accepts appropriate element.text"
+        self.failUnless(self.s(ET.fromstring('<choice>alpha</choice>')))
+
+    def testFailWithOutOfListValue(self):
+        "SelectionCheck() fails if value not in list of acceptable values"
+        self.assertRaises(self.s.error, self.s, 'delta')
+
+class ListCheckTC(unittest.TestCase):
+    "random doc string"
+    def setUp(self):
+        self.l = ListCheck('letter', values=['alpha','gamma','delta'])
+
+    def tearDown(self):
+        del self.l
+
+    def testSingleValidString(self):
+        "ListCheck accepts a valid list of length 1"
+        self.failUnless(self.l("alpha"))
+
+    def testFailWithOutOfValueItem(self):
+        'ListCheck fails if an item in the list is not in value list'
+        self.assertRaises(self.l.error, self.l, "alpha, beta")
+
+    def testFailWithDuplicateItems(self):
+        "ListCheck fails with duplicated values and allowDuplicates is False"
+        self.l.allowDuplicates = False
+        self.assertRaises(self.l.error, self.l, "alpha, alpha")
+
+    def testPassWithDuplicateItems(self):
+        "ListCheck accepts duplicates if allowDuplicates is True"
+        self.l.allow_duplicates = True
+        self.failUnless(self.l('alpha, alpha'))
+
+    def testFailIfTooManyItems(self):
+        "ListCheck fails if list has too many items"
+        self.l.max_items = 2
+        self.assertRaises(self.l.error, self.l, 'alpha, delta, gamma')
+
+    def testFailIfTooFewItems(self):
+        "ListCheck fails if list has too few items"
+        self.l.min_items = 2
+        self.assertRaises(self.l.error, self.l, 'delta')
+
+    def testFailIfWrongCase(self):
+        "ListCheck fails if wrong case and ignore_case is False"
+        self.l.ignore_case = False
+        item ='alpha, gamma, delta'
+        self.assertRaises(self.l.error, self.l, item.upper()  )
+        self.assertRaises(self.l.error, self.l, item.title() )
+
+    def testPassEvenWithWrongCase(self):
+        "ListCheck accpets items if wrong case and ignore_case is True"
+        self.l.ignore_case = True
+        item ='alpha, gamma, delta'
+        self.failUnless( self.l(item.upper()) )
+        self.failUnless( self.l(item.title()) )
+
+    def testPassWithAlternateDelimiter(self):
+        "ListCheck accepts alternate deliminator"
+        self.l.delimiter="::"
+        self.failUnless(self.l("alpha::gamma:: delta") )
+
+    def testPassWithEmptyValues(self):
+        "ListCheck() accepts anything if the value list is empty"
+        l = ListCheck('anythinggoes', values = [])
+        self.failUnless(l("alpha, beta, gamma"), "ListCheck demands values")
+
+    def testAcceptEmptyList(self):
+        "ListCheck() accepts an empty list if minitems is 0"
+        self.failUnless(self.l('<letter/>'), "ListCheck cannot handle empty list")
+
+    def testNormalizedValue(self):
+        self.assertEqual(['alpha', 'gamma'] , self.l("alpha, gamma", normalize=True))
+
+    def testNormalizedList(self):
+        self.assertEqual('alpha, gamma', self.l("alpha, gamma", as_string=True) )
+        self.assertEqual('alpha, gamma', self.l("<letter>alpha, gamma</letter>", as_string=True))
+
+    def testAcceptsPythonList(self):
+        self.assertEqual('alpha, gamma', self.l(['alpha', 'gamma'], as_string=True) )
+
+    def testDummyValue(self):
+        self.assertEqual(self.l.dummy_value(), "")
+        self.l.min_items = 1
+        self.assertEqual(self.l.dummy_value(), "alpha")
+        self.l.min_items = 2
+        self.assertEqual(self.l.dummy_value(), "alpha,gamma")
+
+    def testDummyValue2(self):
+        self.l.values=[]
+        self.assertEqual(self.l.dummy_value(), "")
+        self.l.min_items = 1
+        self.assertEqual(self.l.dummy_value(), "a")
+        self.l.min_items = 2
+        self.assertEqual(self.l.dummy_value(), "a,b")
 
 if __name__=='__main__':
-    s = SelectionCheck('thing', values=['one', 'two', 'five'])
-    print s
-    l = ListCheck('other')
-    print l
+##    logger = logging.getLogger()
+##    logger.setLevel(logging.CRITICAL)
+
+    unittest.main(verbosity=1)

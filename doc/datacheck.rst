@@ -61,3 +61,6 @@ DecimalCheck --- Float Validation
 
 DateTimeCheck --- DateTime validation
 -------------------------------------
+
+
+.. autoclass:: DatetimeCheck

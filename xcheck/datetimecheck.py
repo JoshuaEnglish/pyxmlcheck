@@ -4,7 +4,7 @@ from xcheck import XCheck
 from utils import get_bool
 
 class DatetimeCheck(XCheck):
-    """DateTimeCheck(name, **kwargs)
+    """DateTimeCheck(name[, keywords])
     Checks date and time formatted strings, date objects, and time objects.
     Attributes:
     allow_none [default False] -- allows NoneType or equivalent string
@@ -13,7 +13,7 @@ class DatetimeCheck(XCheck):
     minDateTime [default datetime.datetime.min (year is 1900)] -- minimum date
     maxDateTime [default datetime.date.max] -- maximum date
 
-    Additional attributes in __call__
+    Additional attributes in __call__:
     as_datetime [default False] -- normalizes the value to a
         datetime.datetime object
     as_struct [default False] -- normalizes the value to a
@@ -90,7 +90,7 @@ class DatetimeCheck(XCheck):
 
         if not is_none and not (
                 self.min_datetime <= parsed_date <= self.max_datetime):
-            raise self.error, "Date out of bounds"
+            raise self.error("Date out of bounds")
 
         return ok
 
@@ -115,7 +115,7 @@ class DatetimeCheck(XCheck):
                 return item.strftime(self.format)
             else:
                 return item.strftime(self.formats[0])
-        raise ValueError, "cannot normalize %s" % item
+        raise ValueError("cannot normalize %s" % item)
 
     def dummy_value(self):
         if self.allow_none:
@@ -123,6 +123,96 @@ class DatetimeCheck(XCheck):
         else:
             return self.normalize_content(self.min_datetime)
 
+import unittest
+import time
+
+class DatetimeCheckTC(unittest.TestCase):
+    def setUp(self):
+        self.d = DatetimeCheck('date')
+
+    def tearDown(self):
+        del self.d
+
+    def test_defaults(self):
+        "DatetimeCheck creates appropriate default values"
+        self.assertFalse(self.d.allow_none, "allow_none not False")
+        self.assertEqual(self.d.format, "%a %b %d %H:%M:%S %Y",
+            "format not the default")
+        self.assertEqual(self.d.formats, [], "formats not an empty list")
+
+    def test_custom_attributes(self):
+        "DatetimeCheck customizes attrbutes"
+        d = DatetimeCheck('date', allow_none=True, format="%b-%d-%Y",
+            formats = ['%d-%m-%Y',])
+        self.assertTrue(d.allow_none, "allow_none not customized")
+        self.assertEqual(d.format, '%b-%d-%Y', 'format not customised')
+        self.assertEqual(d.formats, ['%d-%m-%Y'])
+
+    def test_default_format(self):
+        "DatetimeCheck() accepts the default Datetime"
+        self.failUnless(self.d('Mon Oct 26 22:20:43 2009'),
+            "cannot parse default date")
+
+    def test_custom_format(self):
+        "DatetimeCheck() accepts a custom format"
+        d = DatetimeCheck('test', format="%Y%m%d%H%M%S")
+        self.failUnless(d('20090101122042'), 'cannot parse custom date')
+
+    def test_datetime_object(self):
+        "DatetimeCheck() returns a Datetime.Datetime object when requested"
+        dt = self.d("Mon Oct 26 14:52:42 2009", as_datetime=True)
+        self.assertIsInstance(dt, datetime.datetime,
+            "Did not return a datetime.datetime object")
+
+    def test_as_struct(self):
+        "DatetimeCheck() returns a time.struct_time object when requested"
+        dt = self.d("Mon Oct 26 09:00:00 2009", as_struct=True)
+        self.assertIsInstance(dt, time.struct_time,
+            "Did not return a time.struct_time object")
+
+    def test_as_string(self):
+        "DatetimeCheck() returns a string by default"
+        dt = self.d("Sat Jul 14 11:00:00 2001")
+        self.assertTrue(isinstance(dt, basestring),
+            "Did not return a string by default")
+
+    def test_boolean_result(self):
+        "DatetimeCheck() return a boolean if all _asXXX options are false"
+        dt = self.d("Sat Jul 14 11:00:00 2001", as_string = False)
+        self.assertTrue(isinstance(dt, bool), "Did not return a boolean")
+
+    def test_date_out_of_bounds(self):
+        "DatetimeCheck() fails if date is out of range"
+        d = DatetimeCheck('test', format="%m/%d/%Y",
+            min_datetime = "10/1/2009",
+            max_datetime = "10/31/2009")
+        self.assertRaises(self.d.error, d, "9/30/2009")
+
+    def test_month_and_day_only(self):
+        "DatetimeCheck() accepts month and day only"
+        d = DatetimeCheck('mday', format="%b %d", min_datetime="Oct 10",
+            max_datetime="Oct 20")
+        self.failUnless(d('Oct 12'), "Cannot accept month and day only")
+        self.assertRaises(d.error, d, 'Oct 9')
+        self.assertRaises(d.error, d, 'Nov 1')
+
+    def test_format_lists(self):
+        "DatetimeCheck() handles a list of formats"
+        d = DatetimeCheck('formatlist', formats=['%b %d', '%b %d %Y'])
+        self.failUnless(d('Oct 1'), "DatetimeCheck() cannot handle the first format")
+        self.failUnless(d('Jan 1 2000'), "DatetimeCheck() cannot handle the second format")
+
+    def test_allow_none(self):
+        "DatetimeCheck() allows None, optionally"
+        d = DatetimeCheck('date', allow_none = True)
+        self.failUnless(d('None'), "Fails to accept string None")
+        self.failUnless(d(None), "Fails to accept None type")
+        self.failUnless(d('<date>None</date>'), "Fails to accept string-node")
+        self.failUnless(d('<date>none</date>'), "Fails to accept 'none' as node text")
+        self.failUnless(d('none'), "Fails to accept 'none' as text")
+
 if __name__=='__main__':
-    d = DateTimeCheck('sent')
-    print d
+##    logger = logging.getLogger()
+##    logger.setLevel(logging.CRITICAL)
+
+    unittest.main(verbosity=1)
