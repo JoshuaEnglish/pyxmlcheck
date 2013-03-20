@@ -98,6 +98,24 @@ can be translated into an XML definition node:
     Other future plans include an RNG to XCheck converter.
 
 
+Definition nodes use tags defining the checker:
 
+=========   ===============
+tag         Checker Created
+=========   ===============
+xcheck      XCheck
+text        TextCheck
+email       EmailCheck
+url         URLCheck
+int         IntCheck
+decimal     DecimalCheck
+datetime    DatetimeCheck
+bool        BoolCheck
+selection   SelectionCheck
+list        ListCheck
+=========   ===============
 
+Each XML element must have a `name` attribute, which is the tag the checker will
+look for. Other attributes are mapped to the keyword arguments that are called
+when :func:`load_checker` creates the XCheck object.
 

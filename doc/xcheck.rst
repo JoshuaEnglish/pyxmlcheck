@@ -9,36 +9,7 @@
 The :mod:`xcheck` module contains classes for validating XML elements. It uses
 the :mod:`ElementTree` interface.
 
-The :mod:`xcheck` module defines the following execption:
 
-.. exception:: XCheckError
-
-    This is the root error, subclassed from Exception, and is used as the generic error in all `xcheck` objects.
-
-.. exception:: MismatchedTagError
-
-    Occurs when the validator expected one tag, and got another.
-
-.. exception:: UnknownAttributeError
-
-    Raised when a checker comes across an attribute of an element that
-    it does not know about
-
-.. exception:: AttributeError
-
-    Occurs for general XML attribute related issuse
-
-.. exception:: UncheckedAttributeError
-
-    Occurs when an XML Element has an attribute the checker didn't touch
-
-.. exception:: MissingChildError
-
-    Raised when a required child element is missing
-
-.. exception:: UnexpectedChildError
-
-    Raised when the checker encounters a child element it doesn't know about.
 
 :class:`xcheck` -- The Master Class
 -------------------------------------------------

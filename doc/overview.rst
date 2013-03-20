@@ -125,4 +125,4 @@ The :mod:`xcheck` module defines the following classes:
 :func:`load_checker`
 
     Creates an :class:`XCheck` object from a definiton node. The rules for
-    creating a definiton node are outlined in Loading From Definition Nodes
+    creating a definiton node are outlined in :doc:`loader`.

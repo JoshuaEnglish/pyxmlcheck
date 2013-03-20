@@ -765,13 +765,15 @@ class DatetimeCheckTC(unittest.TestCase):
 
     def testDatetimeObject(self):
         "DatetimeCheck() returns a Datetime.Datetime object when requested"
-        dt = self.d("Mon Oct 26 14:52:42 2009", as_Datetime=True)
-        self.assertTrue(isinstance(dt, Datetime.Datetime), "Did not return a Datetime.Datetime object")
+        dt = self.d("Mon Oct 26 14:52:42 2009", as_datetime=True)
+        self.assertIsInstance(dt, datetime.datetime,
+            "Did not return a datetime.datetime object")
 
     def testTimeStructObject(self):
         "DatetimeCheck() returns a time.struct_time object when requested"
         dt = self.d("Mon Oct 26 09:00:00 2009", as_struct=True)
-        self.assertTrue(isinstance(dt, time.struct_time), "Did not return a time.struct_time object")
+        self.assertIsInstance(dt, time.struct_time,
+            "Did not return a time.struct_time object")
 
     def testTimeStringResult(self):
         "DatetimeCheck() returns a string by default"
@@ -1094,7 +1096,7 @@ class XChildWrapTC(unittest.TestCase):
 class DummyValueTC(unittest.TestCase):
     def test_Datetimedummy(self):
         "DatetimeCheck.dummy_value() should return the minimum date"
-        import Datetime
+        import datetime
         mindate = Datetime.Datetime.min.replace(year=1900)
         d = DatetimeCheck('name')
         self.assertEqual(mindate.strftime(d.format), d.dummy_value())
@@ -1412,8 +1414,8 @@ class LoaderTC(unittest.TestCase):
         self.assertFalse(ch.allow_none)
         self.assertEqual(ch.format ,'%a %b %d %H:%M:%S %Y')
         self.assertEqual(ch.formats, [])
-        self.assertEqual(ch.min_datetime,Datetime.Datetime(1900,1,1))
-        self.assertEqual(ch.max_datetime,Datetime.Datetime.max)
+        self.assertEqual(ch.min_datetime,datetime.datetime(1900,1,1))
+        self.assertEqual(ch.max_datetime,datetime.datetime.max)
         self.assertIsInstance(ch, DatetimeCheck)
 
     def test_attributes(self):

@@ -201,6 +201,50 @@ class IntCheckTC(unittest.TestCase):
         self.assertEqual(self.t(9, normalize=True), 9,
             "IntCheck normalize bunged an integer")
 
+class DecimalCheckTC(unittest.TestCase):
+    "These test if the defaults are created properly"
+    def setUp(self):
+        self.t = DecimalCheck('test', min=1, max = 10)
+    def tearDown(self):
+        del self.t
+
+    def test_pass_with_float(self):
+        "DecimalCheck() accepts in-bounds floats values"
+        self.failUnless(self.t(5.0))
+
+    def test_pass_with_integer(self):
+        "DecimalCheck() accepts in-bounds integer values"
+        self.failUnless(self.t(5))
+
+    def test_pass_with_float_string(self):
+        "DecimalCheck() accepts in-bounds strings representing floats"
+        self.failUnless(self.t('4.3'))
+
+    def test_pass_with_integer_string(self):
+        "DecimalCHeck() accepts in-bounds strings representing integers"
+        self.failUnless(self.t('5'))
+
+    def test_pass_with_element(self):
+        self.failUnless(self.t(ET.fromstring('<test>4.5</test>')))
+
+    def test_pass_with_element_string(self):
+        self.assertTrue(self.t('<test>4.5</test>'))
+
+    # Bad Input tests
+    def test_fail_with_empty_string(self):
+        self.assertRaises(ValueError, self.t, '')
+
+    def test_fail_with_oob_float(self):
+        self.assertRaises(self.t.error, self.t, 0.5)
+        self.assertRaises(self.t.error, self.t, 12.4)
+
+    def test_fail_with_oob_string(self):
+        self.assertRaises(self.t.error, self.t, '0.5')
+        self.assertRaises(self.t.error, self.t, '12.4')
+
+    def test_fail_with_crap_value(self):
+        self.assertRaises(ValueError, self.t, 'fail')
+
 
 if __name__=='__main__':
     logger = logging.getLogger()
