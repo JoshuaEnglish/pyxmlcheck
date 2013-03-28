@@ -1267,7 +1267,6 @@ class FromDictTC(unittest.TestCase):
 
 class LoaderTC(unittest.TestCase):
 
-
     def test_xcheck_defaults(self):
         ch = load_checker('<xcheck name="person" />')
         self.assertTrue(isinstance(ch, XCheck))

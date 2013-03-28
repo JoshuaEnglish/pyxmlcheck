@@ -404,7 +404,7 @@ class XCheck(object):
                     print "checking attribute {0} with val {1}".format(ch.name, val)
 
                 # Work around the strangeness of DateTimeCheck (0.4.1)
-                if isinstance(ch, DateTimeCheck):
+                if isinstance(ch, DatetimeCheck):
                     ok &= ch(val, as_string=False)
                 else:
                     ok &= ch(val)
@@ -718,6 +718,7 @@ class XCheck(object):
 
 from dictwrap import *
 
+from datetimecheck import DatetimeCheck
 if __name__=='__main__':
     X = XCheck('oops')
     print X

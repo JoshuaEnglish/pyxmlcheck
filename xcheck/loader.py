@@ -6,6 +6,8 @@ from listcheck import SelectionCheck, ListCheck
 from numbercheck import IntCheck, DecimalCheck
 from datetimecheck import DatetimeCheck
 from utils import get_elem
+from infinity import INF, NINF
+import logging
 
 LOAD_RULES = {'xcheck': XCheck,
 'selection':SelectionCheck,
@@ -97,14 +99,211 @@ def load_checker(node):
             ch.add_child(load_checker(child))
     return ch
 
-if __name__=='__main__':
-    from elementtree import ElementTree as ET
-    txt = """<text name='person'>
-    <attributes><int name='id'/></attributes>
-    </text>"""
-    ch = load_checker(txt)
-    print ch
-    print ch.attributes, bool(ch.attributes)
-    print ch.name
+import unittest
+from utils import get_bool
+import datetime
+class OopsError(XCheckError): pass
 
-    ET.dump( ch.to_definition_node() )
+class LoaderTC(unittest.TestCase):
+
+    def test_xcheck_defaults(self):
+        ch = load_checker('<xcheck name="person" />')
+        self.assertTrue(isinstance(ch, XCheck))
+        self.assertEqual(ch.name, 'person', "load_checker() did not set name")
+        self.assertEqual(ch.min_occurs, 1, "load_checker() did not set min_occurs default")
+        self.assertEqual(ch.max_occurs, 1, "load_checker() did not set max_occurs default")
+        self.assertEqual(ch.children, [], "load_checkr() did not create empty children default")
+        self.assertFalse(ch.unique, "load_checker() did not create default unique attribute")
+        self.assertTrue(ch.required, "load_checker() did not create default required attribute ")
+        self.assertEqual(ch.error, XCheckError, "load_checker() did not cerate default Error")
+        self.assertTrue(ch.check_children)
+        self.assertTrue(ch.ordered)
+        self.assertEqual(ch.helpstr, '')
+
+
+    def test_xcheck_customized(self):
+        ch = load_checker('<xcheck name="dude" min_occurs="2" max_occurs="5" unique="true" required="false" check_children="false" helpstr="text" ordered="false" />')
+        self.assertEqual(ch.name, 'dude')
+        self.assertEqual(ch.min_occurs, 2, "load_checker() did not create custom min_occurs")
+        self.assertEqual(ch.max_occurs, 5, "load_checker() did not creat custom max_occurs")
+        self.assertTrue(ch.unique, "load_checker() did not create custom unique")
+        self.assertFalse(ch.required, "load_checer() did not create custom required")
+        self.assertFalse(ch.check_children)
+        self.assertEqual(ch.help, 'text', "load_checker() did not create custom help")
+        self.assertFalse(ch.ordered, "load_checker() did not customize ordered attribute")
+
+    def test_text_check(self):
+        ch = load_checker('<text name="title" />')
+        self.assertEqual(ch.name, 'title')
+
+        self.assertEqual(ch.min_length, 0)
+        self.assertEqual(ch.max_length, INF)
+        self.assertIsNone(ch.pattern)
+
+        self.assertIsInstance(ch, TextCheck)
+
+    def test_text_custom(self):
+        ch = load_checker('<text name="id" pattern="\d{0,5}" />')
+
+        self.assertEqual(ch.pattern, '\d{0,5}', "load_checker() did not customize pattern")
+        self.assertTrue(ch("13"))
+
+    def test_email_default(self):
+        ch = load_checker('<email name="work" />')
+        self.assertTrue(ch.allow_none)
+        self.assertFalse(ch.allow_blank)
+        self.assertTrue(ch('test@example.com'))
+        self.assertIsInstance(ch, EmailCheck)
+
+    def test_email_custom(self):
+        ch =load_checker('<email name="work" allow_none="False" allow_blank="True" />')
+        self.assertFalse(ch.allow_none)
+        self.assertTrue(ch.allow_blank)
+
+    def test_url_default(self):
+        ch = load_checker('<url name="work" />')
+        self.assertTrue(ch.allow_none)
+        self.assertFalse(ch.allow_blank)
+        self.assertTrue(ch('http://www.example.com'))
+        self.assertIsInstance(ch, URLCheck)
+
+    def test_url_custom(self):
+        ch =load_checker('<url name="work" allow_none="False" allow_blank="True" />')
+        self.assertFalse(ch.allow_none)
+        self.assertTrue(ch.allow_blank)
+
+    def test_bool(self):
+        ch = load_checker('<bool name="active" />')
+        self.assertTrue(ch.none_is_false)
+        self.assertTrue(ch('yes'))
+        self.assertIsInstance(ch, BoolCheck)
+
+    def test_bool_custom(self):
+        ch = load_checker('<bool name="active" none_is_false="False" />')
+        self.assertFalse(ch.none_is_false)
+
+    def test_selection(self):
+        ch = load_checker('<selection name="type" values="home, work, cell" />')
+        self.assertEqual(ch.values, ['home','work','cell'])
+        self.assertTrue(ch.ignore_case)
+        self.assertIsInstance(ch, SelectionCheck)
+
+    def test_selection_partition(self):
+        ch = load_checker('<selection name="range" values="a,z|0,9" delimiter="|" />')
+        self.assertEqual(ch.values, ['a,z', '0,9'])
+
+    def test_selection_custom(self):
+        ch = load_checker('<selection name="test" values="1,2,3" ignore_case="false" />')
+        self.assertFalse(ch.ignore_case)
+
+    def test_selection_failure(self):
+        self.assertRaises(NoSelectionError,load_checker,'<selection name="fail" />')
+        self.assertRaises(NoSelectionError,load_checker,'<selection name="fail" values="" />')
+
+    def test_int(self):
+        ch = load_checker('<int name="value" />')
+        self.assertEqual(ch.min, NINF)
+        self.assertEqual(ch.max, INF)
+        self.assertIsInstance(ch, IntCheck)
+
+    def test_int_custom(self):
+        ch = load_checker('<int name="value" min="3" max="10" />')
+        self.assertEqual(ch.min, 3)
+        self.assertEqual(ch.max, 10)
+
+    def test_decimal(self):
+        ch = load_checker('<decimal name="amps" />')
+        self.assertEqual(ch.min, NINF)
+        self.assertEqual(ch.max, INF)
+        self.assertIsInstance(ch, DecimalCheck)
+
+    def test_decimal_custom(self):
+        ch = load_checker('<decimal name="test" min="-1.4" max="1.5" />')
+        self.assertEqual(ch.min, -1.4)
+        self.assertEqual(ch.max, 1.5)
+
+
+    def test_list(self):
+        ch = load_checker('<list name="items" />')
+        self.assertEqual(ch.delimiter, ',')
+        self.assertEqual(ch.values, [])
+        self.assertFalse(ch.allow_duplicates)
+        self.assertEqual(ch.min_items, 0)
+        self.assertEqual(ch.max_items, INF)
+        self.assertFalse(ch.ignore_case)
+        self.assertIsInstance(ch, ListCheck)
+
+    def test_list_with_items(self):
+        ch = load_checker('<list name="items" values="one, two" />')
+        self.assertEqual(ch.values, ['one','two'])
+
+    def test_list_customs(self):
+        ch =load_checker('<list name="items" values="one+two" delimiter="+" min_items="4" max_items="10" allow_duplicates="true" ignore_case="true"/>')
+
+        self.assertEqual(ch.values, ['one','two'])
+        self.assertEqual(ch.delimiter, "+")
+        self.assertEqual(ch.min_items, 4)
+        self.assertEqual(ch.max_items, 10)
+        self.assertTrue(ch.allow_duplicates)
+        self.assertTrue(ch.ignore_case)
+
+    def test_datetime(self):
+        ch = load_checker('<datetime name="sent" />')
+        self.assertFalse(ch.allow_none)
+        self.assertEqual(ch.format ,'%a %b %d %H:%M:%S %Y')
+        self.assertEqual(ch.formats, [])
+        self.assertEqual(ch.min_datetime,datetime.datetime(1900,1,1))
+        self.assertEqual(ch.max_datetime,datetime.datetime.max)
+        self.assertIsInstance(ch, DatetimeCheck)
+
+    def test_attributes(self):
+        text= """<xcheck name="person">
+        <attributes>
+            <int name="id" min="1"/>
+        </attributes>
+        <children>
+            <xcheck name="name">
+            <children>
+                <text name="first" />
+                <text name="last" />
+            </children>
+            </xcheck>
+        </children>
+        </xcheck>
+        """
+        ch = load_checker(text)
+        self.assertEqual(ch.name, 'person')
+        self.assertIn('id', ch.attributes)
+        self.assertIsInstance(ch.get('id'), IntCheck)
+
+        self.assertTrue(ch('<person id="4"><name><first>Josh</first><last>English</last></name></person>'))
+
+##    def test_dude(self):
+##        dude_def = dude.to_definition_node()
+####        indent(dude_def)
+####        ET.dump(dude_def)
+##        new_ch = load_checker(dude_def)
+##        new_ch(dudeNode)
+
+    def test_load_errors(self):
+        ch = load_checker("<text name='oops' error='TypeError' />")
+        self.assertTrue(issubclass(ch.error, XCheckError))
+
+    def test_uknown_error(self):
+        "load_checker() substitutes UnmatchedError if custom error doesn't exist"
+        ch = load_checker("<text name='oops' error='googoogoojoob' />")
+        self.assertTrue(issubclass(ch.error, UnmatchedError))
+
+    def test_custom_error(self):
+        "load_checker() assigns custom error class"
+
+        ch = load_checker("<text name='oops' error='OopsError' />")
+        self.assertTrue(issubclass(ch.error, OopsError), "load_checker did not load OopsError")
+        self.assertTrue(issubclass(ch.error, XCheckError), "load_checker did not load subclass of XCheckError")
+
+
+if __name__=='__main__':
+    logger = logging.getLogger()
+    logger.setLevel(logging.CRITICAL)
+
+    unittest.main(verbosity=1)
