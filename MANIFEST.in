@@ -1,3 +1,0 @@
-include TODO.txt
-
-recursive-include docs *.html *.css *.png
