@@ -1,8 +1,0 @@
-Using
-========
-
-There are a few rules about the assumptions xcheck uses. xcheck is designed to validate xml-data, which, as I see it, as a few limitations:
-
-* No Meaningful Mixed Content: an element has either text or children, but not bothed
-* Text between children of an element is ignored. This allows the xml to be written with human-readable line breaks.
-* Spaces around an elements text is ignored. This means <x>a</a> and <x> a </x> are considered the same element.
