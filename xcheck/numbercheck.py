@@ -61,7 +61,7 @@ class IntCheck(XCheck):
     def __call__(self, item, **kwargs):
         self.as_string = kwargs.pop('as_string', False)
         if self.as_string:
-            kwargs['_normalize'] = True
+            kwargs['normalize'] = True
         return XCheck.__call__(self, item, **kwargs)
 
     def dummy_value(self):
@@ -200,6 +200,9 @@ class IntCheckTC(unittest.TestCase):
             "IntCheck normalized bunged a string")
         self.assertEqual(self.t(9, normalize=True), 9,
             "IntCheck normalize bunged an integer")
+
+    def test_bugfix004(self):
+        self.assertEqual(self.t(9, as_string=True), '9')
 
 class DecimalCheckTC(unittest.TestCase):
     "These test if the defaults are created properly"

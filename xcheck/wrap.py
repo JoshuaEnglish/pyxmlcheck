@@ -1,3 +1,5 @@
+from functools import partial
+
 from xcheck import ET
 from utils import get_elem
 
@@ -224,12 +226,281 @@ class Wrap(object):
         "returns a list of checker tokens"
         return self._checker.tokens()
 
-if __name__=='__main__':
-    from numbercheck import IntCheck
-    i = IntCheck('value', min=1, max=6)
-    print i
-    print i(2)
 
-    e = get_elem('<value>2</value>')
-    w = Wrap(i, e)
-    print w
+
+import unittest
+from xcheck import XCheck, XCheckError
+from boolcheck import BoolCheck
+from textcheck import TextCheck, EmailCheck
+from numbercheck import IntCheck
+from listcheck import SelectionCheck
+from datetimecheck import DatetimeCheck
+from loader import load_checker
+
+
+class XWrapTC(unittest.TestCase):
+    def setUp(self):
+        nick = BoolCheck('nick', required=False)
+        fname = TextCheck('first', min_length = 1)
+        fname.addattribute(nick)
+
+        lname = TextCheck('last', min_length = 1)
+        code = IntCheck('code', min_occurs = 1, max_occurs = 5)
+        code.addattribute(TextCheck('word', required=False) )
+        ch = XCheck('name', children=[fname, lname, code])
+        idch = IntCheck('id', required=True)
+        ch.addattribute(idch)
+        elem = ET.fromstring("""<name id="1">
+        <first nick="true">Josh</first>
+        <last>English</last>
+        <code>12</code>
+        <code word="answer">42</code>
+        </name>""")
+        self.w = Wrap(ch, elem)
+
+    def tearDown(self):
+        del self.w
+
+    ## New 0.4.7
+    def test_direct_access(self):
+        self.assertEqual(self.w.first, "Josh")
+        self.assertEqual(self.w.last, "English", "Last Name didn't match")
+        self.assertEqual(self.w.code, ['12','42'], "Code didn't return a list")
+
+    def test_bad_init(self):
+        "Wrap should fail on initiation if element doesn't validate by checker"
+        ch = TextCheck('name')
+        elem = ET.fromstring('<idea>name</idea>')
+        self.assertRaises(XCheckError, Wrap, ch, elem)
+
+#### _get_elem_value
+    def test_bad_xml_tag(self):
+        "_get_elem_value(tag) should fail if the tag is not part of the checker definition"
+        self.assertRaises(ValueError, self.w._get_elem_value, 'pp')
+
+    def test__get_elem_value(self):
+        "_get_elem_value(tag) should return appropriate text"
+        self.assertEqual(self.w._get_elem_value('first'), 'Josh')
+        self.assertEqual(self.w._get_elem_value('last'), 'English')
+
+    def test_get_list_elem_text(self):
+        "get_list_elem_value() returns appropriate value"
+        self.assertEqual(self.w._get_elem_value('code', 0), 12)
+        self.assertEqual(self.w._get_elem_value('code', 1), 42)
+
+    def test_get_elem_text(self):
+        "_get_elem_value(tag) should return a string if _normalize is false"
+        self.assertEqual(self.w._get_elem_value('code', 0, False), '12')
+
+    def test_get_list_elem_bad_index(self):
+        "_get_elem_value() fails if index is beyond current availability in the node"
+        self.assertRaises(IndexError, self.w._get_elem_value, 'code', 2)
+
+    def test_get_list_elem_bad_index2(self):
+        "_get_elem_value fails if index in out of bounds by checker definition"
+        self.assertRaises(IndexError, self.w._get_elem_value, 'code', 6)
+
+    def test_get_list_elem_bad_index_type(self):
+        self.assertRaises(TypeError, self.w._get_elem_value, 'code', 'a')
+        self.assertRaises(TypeError, self.w._get_elem_value, 'code', 1.5)
+
+##### _set_elem_value
+    def test_get_wrong_elem_att(self):
+        "_get_elem_att(name, att) should fail if att not an attribute of name element according to checker definition"
+        self.assertRaises(ValueError, self.w._get_elem_att, 'last', 'nick')
+
+    def testBadSetValue(self):
+        "set_elem_text(tag, value) should fail if value is not valid by the checker"
+        self.assertRaises((ValueError, XCheckError), self.w._set_elem_value, 'last', '')
+
+    def test_set_list_elem_value_no_index(self):
+        "_set_elem_value(tag, value) should work with no index given"
+        self.w._set_elem_value('first', 'Stephanie')
+        self.assertEqual(self.w._get_elem_value('first'), 'Stephanie')
+
+    def test_set_list_elem_text_default_index(self):
+        "_set_elem_value() should change the default index"
+        self.w._set_elem_value('code', 9)
+        self.assertEqual(self.w._get_elem_value('code'), 9)
+
+    def test__set_elem_value_only_one_value(self):
+        "_set_elem_value() should not change other index values"
+        self.w._set_elem_value('code', '9')
+        self.failUnlessEqual(self.w._get_elem_value('code', 1), 42)
+
+    def test_set_list_elem_text_by_index(self):
+        self.w._set_elem_value('code', '9', 1)
+        self.failUnlessEqual(self.w._get_elem_value('code', 1), 9)
+
+    def test_set_list_elem_text_bad_input(self):
+        self.failUnlessRaises((ValueError, XCheckError),
+            self.w._set_elem_value, 'code', 'alpha' )
+
+    def test_set_list_elem_text_index_too_high(self):
+        "_set_elem_value fails if the index is greater than checker max_occurs"
+        self.failUnlessRaises(IndexError,
+            self.w._set_elem_value, 'first', 'Stephanie', 1)
+#### _get_elem_att
+    def test__get_elem_att(self):
+        "_get_elem_att(name, att) should return attribute value or None"
+        self.assertEqual(self.w._get_elem_att('first','nick'), True)
+
+    def test__get_elem_att_by_index(self):
+        self.assertEqual(self.w._get_elem_att('code', 'word'), None)
+        self.assertEqual(self.w._get_elem_att('code', 'word', 1), 'answer')
+
+    def test__get_elem_att_by_out_of_bounds_index(self):
+        "_get_elem_att() should fail if index is larger than definition allows"
+        self.failUnlessRaises(IndexError,
+            self.w._get_elem_att, 'code', 'word', 6)
+
+    def test__get_elem_att_with_too_high_index(self):
+        "_get_elem_att() should fail if index is larger than current elements"
+        self.failUnlessRaises((IndexError, XCheckError),
+            self.w._get_elem_att, 'code', 'word', 3)
+
+
+### _set_elem_att
+    def test__set_elem_att(self):
+        "_set_elem_att works for valid input"
+        self.w._set_elem_att('first', 'nick', False)
+        self.assertEqual(self.w._get_elem_att('first', 'nick'), False)
+
+
+    def test__set_elem_att_by_index(self):
+        "_set_elem_att() sets the valid index"
+        self.w._set_elem_att('code','word', 'test', 1)
+        self.failUnlessEqual(self.w._get_elem_att('code', 'word',1), 'test')
+
+### _add_elem
+    def test__add_elem_when_plain_text(self):
+        "_add_elem() should work for simple node creation values"
+        self.w._add_elem('code', 64, {'word': 'old'})
+        self.failUnlessEqual(self.w._get_elem_value('code', 2), 64)
+        self.failUnlessEqual(self.w._get_elem_att('code', 'word', 2),'old')
+
+    def test__add_elem_no_more_allowed(self):
+        "_add_elem() should fail if the number of elements has reached checker.max_occurs"
+        self.w._add_elem('code', 2)
+        self.w._add_elem('code', 3)
+        self.w._add_elem('code', 4) #! These should be fine
+        self.failUnlessRaises(IndexError, self.w._add_elem, 'code', 5)
+
+### miscellaneous
+
+    def test_get_optional_elem_value(self):
+        ch = XCheck('thing')
+        ch.add_child(TextCheck('item', min_occurs = 0))
+
+        elem = ET.Element('thing')
+
+        w = Wrap(ch, elem)
+
+        self.assertEqual(w._get_elem_value('item'), '')
+
+    def test_get_att(self):
+        self.assertEqual(self.w._get_att('id'), 1)
+
+    def test_set_att(self):
+        self.w._set_elem_att('name','id', 2)
+        self.assertEqual(self.w._get_att('id'), 2,
+            "Didn't change element attribute")
+
+class XChildWrapTC(unittest.TestCase):
+    def setUp(self):
+        #~ dude = XCheck('dude')
+        nick = BoolCheck('nick', required=False)
+        fname = TextCheck('first', min_length = 1)
+        fname.addattribute(nick)
+
+
+
+        lname = TextCheck('last', min_length = 1)
+        code = IntCheck('code', min_occurs = 1, max_occurs = 5)
+        code.addattribute(TextCheck('word', required=False) )
+        name = XCheck('name', children=[fname, lname, code])
+
+        emailtype = SelectionCheck('type', values = ['home','work', 'personal'])
+        email = EmailCheck('email', max_occurs=2)
+        email.addattribute(emailtype)
+        street = TextCheck('street')
+        city = TextCheck('city')
+
+        address = XCheck('address', children = [street, city, email], max_occurs = 4)
+        self.address = address
+        dude = XCheck('dude', children=[name, address])
+        idch = IntCheck('id', required=True)
+        dude.addattribute(idch)
+
+        elem = ET.fromstring("""<dude id="1">
+        <name>
+            <first nick="true">Josh</first>
+            <last>English</last>
+            <code>12</code>
+            <code word="answer">42</code>
+        </name>
+        <address>
+            <street>100 Main St</street>
+            <city>Podunk</city>
+            <email type="home">dude@example.com</email>
+            <email type="work">dude@slavewage.com</email>
+        </address>
+        <address>
+            <street>318 West Nowhere Ln</street>
+            <city>East Podunk</city>
+            <email type="personal">dude@home.net</email>
+        </address>
+        </dude>""")
+        self.w = Wrap(dude, elem)
+
+    def tearDown(self):
+        del self.w
+
+
+    def test__get_child_Wrap(self):
+        "_get_child_Wrap returns a Wrap instance with the appropriate checker and node"
+        w0 = self.w._get_child_wrap('address', 0)
+        w1 = self.w._get_child_wrap('address', 1)
+        self.assertEqual(w0._checker, self.address, "checker object is wrong")
+        self.assertEqual(w0._elem.tag, "address", "element tag is wrong")
+        self.assertEqual(w0._get_elem_value('street'),
+            '100 Main St', "sub element value misread")
+        self.assertEqual(w1._get_elem_value('street'), '318 West Nowhere Ln')
+
+class TestWrap3(unittest.TestCase):
+    def test_wrap_string(self):
+        s = "<dude><first>Josh</first><last>English</last></dude>"
+        dudecheck = load_checker(
+            """<xcheck name='dude'>
+            <children>
+            <text name='first'/>
+            <text name='last'/>
+            </children>
+            </xcheck>
+            """)
+        dudecheck(s)
+        dude = Wrap(dudecheck)
+        self.assertTrue(isinstance(dude, Wrap))
+        dude = Wrap(dudecheck, s)
+        self.assertTrue(isinstance(dude, Wrap))
+        self.assertEqual(dude._get_elem_value('first'),'Josh')
+
+    def test_add_elem_if_needed(self):
+        stuff_check = load_checker(
+            """<xcheck name="stuff">
+            <children>
+            <text name="item" min_occurs="0" max_occurs="4" />
+            </children>
+            </xcheck>
+            """)
+        empty_example = Wrap(stuff_check)
+        empty_example._set_elem_value('item','one')
+
+        self.assertEqual(empty_example._get_elem_value('item'),'one')
+
+
+if __name__=='__main__':
+    unittest.main(verbosity=1)
+
+
+
