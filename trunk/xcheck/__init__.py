@@ -46,9 +46,12 @@ __history__ = """
       (03.09.2013) -- Added get_elem into the Wrap, so a string object can be
                       used as well
             -- Fixed Wrap._set_elem_value to add an element if needed
+0.6.6 (04.15.2013) -- renamed xcheck submodule core
+            -- Fixed bug 4 -- IntCheck was using _normalize instead of normalize
+              as keyword argument
 """
 
-from xcheck import *
+from core import *
 from textcheck import TextCheck, EmailCheck, URLCheck
 from boolcheck import BoolCheck
 from listcheck import NoSelectionError, BadSelectionsError
