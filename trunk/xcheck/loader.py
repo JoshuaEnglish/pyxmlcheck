@@ -1,4 +1,4 @@
-from xcheck import XCheck, XCheckError
+from core import XCheck, XCheckError
 from textcheck import TextCheck, EmailCheck, URLCheck
 from boolcheck import BoolCheck
 from listcheck import NoSelectionError, BadSelectionsError
@@ -10,15 +10,15 @@ from infinity import INF, NINF
 import logging
 
 LOAD_RULES = {'xcheck': XCheck,
-'selection':SelectionCheck,
-'text': TextCheck,
-'int': IntCheck,
-'datetime': DatetimeCheck,
-'decimal': DecimalCheck,
-'list': ListCheck,
-'url': URLCheck,
-'email': EmailCheck,
-'bool': BoolCheck
+    'selection':SelectionCheck,
+    'text': TextCheck,
+    'int': IntCheck,
+    'datetime': DatetimeCheck,
+    'decimal': DecimalCheck,
+    'list': ListCheck,
+    'url': URLCheck,
+    'email': EmailCheck,
+    'bool': BoolCheck
 }
 
 class XCheckLoadError(XCheckError): pass

@@ -5,6 +5,7 @@ setup.py
 test\test_xcheck.py
 xcheck\__init__.py
 xcheck\boolcheck.py
+xcheck\core.py
 xcheck\datetimecheck.py
 xcheck\dictwrap.py
 xcheck\infinity.py
@@ -14,4 +15,3 @@ xcheck\numbercheck.py
 xcheck\textcheck.py
 xcheck\utils.py
 xcheck\wrap.py
-xcheck\xcheck.py

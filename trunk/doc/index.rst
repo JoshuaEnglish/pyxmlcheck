@@ -24,6 +24,8 @@ Contents:
    wrap
    loader
    errors
+   history
+
 
 Indices and tables
 ==================

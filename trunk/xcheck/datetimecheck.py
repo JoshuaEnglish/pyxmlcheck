@@ -1,38 +1,44 @@
 import datetime
 
-from xcheck import XCheck
+from core import XCheck
 from utils import get_bool
 
 class DatetimeCheck(XCheck):
     """DateTimeCheck(name[, keywords])
     Checks date and time formatted strings, date objects, and time objects.
-    Attributes:
-    allow_none [default False] -- allows NoneType or equivalent string
-    format [default "%a %b %d %H:%M:%S %Y"] -- the format to use while checking
-    formats or formatList [default an empty list] -- several string formats
-    minDateTime [default datetime.datetime.min (year is 1900)] -- minimum date
-    maxDateTime [default datetime.date.max] -- maximum date
 
-    Additional attributes in __call__:
-    as_datetime [default False] -- normalizes the value to a
-        datetime.datetime object
-    as_struct [default False] -- normalizes the value to a
-        time.struct_time object
-    as_string [default True] -- normalzes the value to a string formatted
-        according to the format argument or the first format in the
-        formats list.
+    :param allow_none: allows NoneType or equivalent string to be treated as False
+    :type allow_none: Boolean (default False)
+    :param format: the format to use while checking (see Python documentation)
+    :type format: str (default "%a %b %d %H:%M:%S %Y")
+    :param formats: several string formats for alternate use
+    :type formats: list of strings
+    :param formatlist: alias for formats
+    :param min_datetime: minimum date
+    :type min_datetime: datetime.date (default Jan. 1, 1900)
+    :param max_datetime: maximum date
+    :type max_datetime: datetime.date (default datetime.date.max)
+
+    Additional attributes in __call__
+
+    :param as_datetime: normalizes the value to a datetime.datetime object
+    :param as_struct: normalizes the value to atime.struct_time object
+    :param as_string: normalzes the value to a string
 
     DateTimeCheck ignores custom use of _normalize. If any of as_datetime,
         as_struct, or as_string are true, _normalize will be set to True.
+
+    By defaulet `as_string` is `True` and `as_datetime` and
+    `as_struct` are False in the call.
     """
 
     def __init__(self, name, **kwargs):
         self.allow_none = get_bool(kwargs.pop('ignore_case', False))
         self.format = kwargs.pop('format', "%a %b %d %H:%M:%S %Y")
         self.formats = kwargs.pop('formats', [])
-        self.min_datetime = kwargs.pop('minDateTime',
+        self.min_datetime = kwargs.pop('min_datetime',
             datetime.datetime.min.replace(year=1900))
-        self.max_datetime = kwargs.pop('maxDateTime', datetime.datetime.max)
+        self.max_datetime = kwargs.pop('max_datetime', datetime.datetime.max)
         #print self.min_datetime
         XCheck.__init__(self, name, **kwargs)
         self._object_atts.extend(['allow_none', 'format', 'formats',
@@ -97,7 +103,7 @@ class DatetimeCheck(XCheck):
     def __call__(self, item, **kwargs):
         self.as_datetime = kwargs.pop('as_datetime', False)
         self.as_struct = kwargs.pop('as_struct', False)
-        self.as_string = kwargs.pop('as_string', True)
+        self.as_string = kwargs.pop('as_string', False)
 
         kwargs['normalize'] = any(
             [self.as_datetime, self.as_struct, self.as_string])
@@ -171,13 +177,13 @@ class DatetimeCheckTC(unittest.TestCase):
             "Did not return a time.struct_time object")
 
     def test_as_string(self):
-        "DatetimeCheck() returns a string by default"
-        dt = self.d("Sat Jul 14 11:00:00 2001")
+        "DatetimeCheck() returns a string by when requested"
+        dt = self.d("Sat Jul 14 11:00:00 2001", as_string=True)
         self.assertTrue(isinstance(dt, basestring),
             "Did not return a string by default")
 
     def test_boolean_result(self):
-        "DatetimeCheck() return a boolean if all _asXXX options are false"
+        "DatetimeCheck() return a boolean if all as_xxx options are False"
         dt = self.d("Sat Jul 14 11:00:00 2001", as_string = False)
         self.assertTrue(isinstance(dt, bool), "Did not return a boolean")
 
@@ -199,8 +205,10 @@ class DatetimeCheckTC(unittest.TestCase):
     def test_format_lists(self):
         "DatetimeCheck() handles a list of formats"
         d = DatetimeCheck('formatlist', formats=['%b %d', '%b %d %Y'])
-        self.failUnless(d('Oct 1'), "DatetimeCheck() cannot handle the first format")
-        self.failUnless(d('Jan 1 2000'), "DatetimeCheck() cannot handle the second format")
+        self.failUnless(d('Oct 1'),
+            "DatetimeCheck() cannot handle the first format")
+        self.failUnless(d('Jan 1 2000'),
+            "DatetimeCheck() cannot handle the second format")
 
     def test_allow_none(self):
         "DatetimeCheck() allows None, optionally"
@@ -208,7 +216,8 @@ class DatetimeCheckTC(unittest.TestCase):
         self.failUnless(d('None'), "Fails to accept string None")
         self.failUnless(d(None), "Fails to accept None type")
         self.failUnless(d('<date>None</date>'), "Fails to accept string-node")
-        self.failUnless(d('<date>none</date>'), "Fails to accept 'none' as node text")
+        self.failUnless(d('<date>none</date>'),
+            "DatetimeCheck() fails to accept 'none' as node text")
         self.failUnless(d('none'), "Fails to accept 'none' as text")
 
 if __name__=='__main__':

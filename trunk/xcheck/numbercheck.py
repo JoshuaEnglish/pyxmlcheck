@@ -1,6 +1,6 @@
 import logging
 
-from xcheck import XCheck, XCheckError
+from core import XCheck, XCheckError
 from infinity import INF, NINF
 
 
@@ -120,7 +120,7 @@ class DecimalCheck(XCheck):
 
 
 import unittest
-from xcheck import ET
+from core import ET
 
 class IntCheckTC(unittest.TestCase):
     "These test if the defaults are created properly"

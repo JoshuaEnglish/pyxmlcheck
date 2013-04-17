@@ -14,20 +14,20 @@ SelectionCheck --- Enumerated values
 
 .. exception:: BadSelectionsError
 
-    *BadSelectionsError* is raised if the values are not `string` or 
+    *BadSelectionsError* is raised if the values are not `string` or
     `unicode` objects.
 
-.. class:: SelectionCheck( *args, values=[ items ], ignoreCase = True)
+.. class:: SelectionCheck( *args, values[, ignoreCase])
 
     .. attribute:: values
-    
+
         *values* must be a list of strings.
-    
+
     .. attribute:: ignoreCase
-    
+
         If **True**, will validate despite the case of the item being
         validated.
-    
+
 Examples
 ^^^^^^^^^
 
@@ -37,12 +37,12 @@ Examples
     ch('FWS') # passes
     ch('fws') # passes
     ch('help') # fails
- 
+
 ListCheck --- Multiple Enumerated Values
 ----------------------------------------
 
 .. class:: ListCheck( *args, [delimiter, values, allowDuplicates, minItems, maxItems, ignoreCase)
-    
+
     :param delimiter: string to separate list items
     :type delimiter: string
     :param values: acceptable values for the list items
@@ -57,11 +57,18 @@ ListCheck --- Multiple Enumerated Values
     :type ignore_case: boolean
 
     .. attribute:: values
-    
+
         If *values* is an empty list, any text values will pass as long
         as the other attribute checks pass.
-    
-There isn't much difference between :class:`SelectionCheck` and 
+
+    Calling a ListCheck object can have two keyword parameters.
+
+    :param normalize: Return a Python list
+    :param as_string: Return a string representation of the list
+
+    The default values for normalize and as_string are both False.
+
+There isn't much difference between :class:`SelectionCheck` and
 :class:`ListCheck`. Future versions may combine them into one class. A :class:`ListCheck`
-object is not much more than a :class:`SelectionCheck` object that can read more than 
+object is not much more than a :class:`SelectionCheck` object that can read more than
 one item.

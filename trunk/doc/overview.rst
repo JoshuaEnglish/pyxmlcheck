@@ -75,25 +75,25 @@ ListCheck	Lists of strings with filtering
     :class:`Wrap` provides an interface between a checker and an element,
     creating a Python object::
 
-    >>> from xcheck import XCheck, TextCheck, Wrap
-    >>> first = TextCheck('first', minLength = 2)
-    >>> last = TextCheck('last', minLength = 2)
-    >>> nameCh = XCheck('name', children = [first, last])
-    >>> from elementtree import ElementTree as ET
-    >>> name = ET.Element('name')
-    >>> fname = ET.SubElement(name, 'first')
-    >>> fname.text = 'Josh'
-    >>> lname = ET.SubElement(name, 'last')
-    >>> lname.text = 'English'
-    >>> ET.dump(name)
-    '<name><first>Josh</first><last>English</last></name>'
-    >>> nameCh(name)
-    True
-    >>> nameObj = Wrap(nameCh, name)
-    >>> nameObj._get_elem_value('first')
-    'Josh'
-    >>> nameObj._get_elem_value('last')
-    'English'
+        >>> from xcheck import XCheck, TextCheck, Wrap
+        >>> first = TextCheck('first', minLength = 2)
+        >>> last = TextCheck('last', minLength = 2)
+        >>> nameCh = XCheck('name', children = [first, last])
+        >>> from elementtree import ElementTree as ET
+        >>> name = ET.Element('name')
+        >>> fname = ET.SubElement(name, 'first')
+        >>> fname.text = 'Josh'
+        >>> lname = ET.SubElement(name, 'last')
+        >>> lname.text = 'English'
+        >>> ET.dump(name)
+        '<name><first>Josh</first><last>English</last></name>'
+        >>> nameCh(name)
+        True
+        >>> nameObj = Wrap(nameCh, name)
+        >>> nameObj._get_elem_value('first')
+        'Josh'
+        >>> nameObj._get_elem_value('last')
+        'English'
 
 
     The :class:`Wrap` class can be subclassed to provide more meaninful

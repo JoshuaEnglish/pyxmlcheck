@@ -3,7 +3,7 @@ Two tools for turning an XML node into a dictionary and back.
 """
 from elementtree import ElementTree as ET
 
-from xcheck import XCheck
+from core import XCheck
 from boolcheck import BoolCheck
 from numbercheck import IntCheck
 from listcheck import ListCheck, SelectionCheck

@@ -1,6 +1,6 @@
 import operator
 
-from xcheck import XCheckError, XCheck
+from core import XCheckError, XCheck
 from boolcheck import BoolCheck
 from infinity import INF, NINF
 
@@ -12,8 +12,10 @@ class BadSelectionsError(XCheckError):
 class SelectionCheck(XCheck):
     """SelectionCheck(name, **kwargs)
     SelectionCheck checks against a set number of string values
-    values -- a required list of string objects
-    ignore_case [default True] -- allows value to match upper or lower case
+    :param values: required list of string objects
+    :param ignore_case: allows value to match upper or lower case
+    :type ignore_case: bool (default True)
+
     """
     _boolCheck = BoolCheck('caseSensitive')
     def __init__(self, name, **kwargs):
@@ -64,7 +66,6 @@ class ListCheck(XCheck):
     """ListCheck(name, **kwargs)
     List Check accepts a string that is formatted as a list
 
-    Attributes:
     delimiter [default ','] -- The separator between items
     values [default []] -- The acceptable values for each item
         if values exists, each item in the list will be checked that it
@@ -160,7 +161,7 @@ class ListCheck(XCheck):
             return self.delimiter.join(lowercase[:self.min_items])
 
 import unittest
-from xcheck import ET
+from core import ET
 
 class SelectionCheckTC(unittest.TestCase):
     def setUp(self):

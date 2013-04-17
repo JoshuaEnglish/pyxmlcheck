@@ -1,6 +1,6 @@
 from functools import partial
 
-from xcheck import ET
+from core import ET
 from utils import get_elem
 
 class Wrap(object):
@@ -8,12 +8,11 @@ class Wrap(object):
     Creates a object Wrapper around an element that must validate to the
     checker object.
 
-    Arguments::
+    :param checker: an XCheck instance. Should not be an instance of a sub-class
+    :type checker: XCheck
+    :param element: Data to be wrapped
+    :type element: ElementTree.Element, a string representation, or None
 
-        :param checker: an XCheck instance. Should not be an instance of a sub-class
-        :type checker: XCheck
-        :param element: Data to be wrapped
-        :type element: ElementTree.Element, a string representation, or None
     """
     def __init__(self, ch, elem=None):
         ch(elem)
@@ -128,11 +127,12 @@ class Wrap(object):
     def _set_elem_att(self, tag, att, value, nth = 0):
         """_set_elem_att(tag, att, value, nth=0)
         Sets the attribute value for the nth occurance given element tag.
-        Raises a ValueError if any of the following are true:
-            The tag name does not appear in the checker definition
-            The attribute name does not appear in the checker definition
-            The attribute is not an attribute of the given tag
-            The value is not acceptable according to the checker definition
+        Raises a ValueError if any of the following are true::
+
+            * The tag name does not appear in the checker definition
+            * The attribute name does not appear in the checker definition
+            * The attribute is not an attribute of the given tag
+            * The value is not acceptable according to the checker definition
         """
         if tag not in self._checker.tokens():
             raise ValueError, "'%s' is not a valid element tag" % tag
@@ -229,7 +229,7 @@ class Wrap(object):
 
 
 import unittest
-from xcheck import XCheck, XCheckError
+from core import XCheck, XCheckError
 from boolcheck import BoolCheck
 from textcheck import TextCheck, EmailCheck
 from numbercheck import IntCheck
