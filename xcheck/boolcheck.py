@@ -1,4 +1,4 @@
-from xcheck import XCheck, ET
+from core import XCheck, ET
 
 
 

@@ -1,14 +1,13 @@
 import re
 
-from xcheck import XCheck
+from core import XCheck
 from infinity import INF
 
 #todo: Add no_spaces_allowed option (default False)
 class TextCheck(XCheck):
-    """TextCheck(name[, keywords])
+    """TextCheck(name[, min_length, max_length, pattern])
     TextCheck validates text or elements with string values
 
-    Attributes:
     :param min_length: Minimum length of text (default 0)
     :type min_length: integer
     :param max_length: Maximum length of text (default INF)
@@ -57,14 +56,14 @@ class TextCheck(XCheck):
 
 
 class EmailCheck(TextCheck):
-    """EmailCheck(name, **kwargs)
+    """EmailCheck(name [allow_none, allow_blank])
     Creates a checker specializing in email addresses
 
-    Attributes:
-    allow_none [default True] -- allows NoneType or case-insensitive 'none'
-        instead of an email address
-    allow_blank [default False] -- allows an empty or blank string instead of
-        an email address
+
+    :param allow_none: allows NoneType or case-insensitive 'none' instead of an email address
+    :type allow_none: boolean (default True)
+    :param allow_blank: allows an empty or blank string instead of an email address
+    :type allow_blank: boolean (default False)
     """
     _emailMatch = re.compile(r'\S+@\S+\.\S+')
 
@@ -114,6 +113,16 @@ class EmailCheck(TextCheck):
         return "me@example.com"
 
 class URLCheck(TextCheck):
+    """UrlCheck(name [, allow_none, allow_blank])
+    Creates a checker specializing in URLs
+
+    :param allow_none: allows NoneType or case-insensitive 'none' instead of a URL
+    :type allow_none: boolean (default True)
+    :param allow_blank: allows an empty or blank string instead of a URL
+    :type allow_blank: boolean (default False)
+
+    This checker uses the urlparse module from the Python distribution.
+    """
     def __init__(self, name, **kwargs):
         self.allow_none = kwargs.pop('allow_none', True)
         self.allow_blank = kwargs.pop('allow_blank', False)
@@ -158,7 +167,7 @@ class URLCheck(TextCheck):
         return "http://www.example.com"
 
 import unittest
-from xcheck import ET
+from core import ET
 
 class TextCheckTC(unittest.TestCase):
     def setUp(self):
