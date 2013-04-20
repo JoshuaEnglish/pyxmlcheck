@@ -1,5 +1,5 @@
-Enumeration Validators
-======================
+Selection Validators
+====================
 
 SelectionCheck --- Enumerated values
 -------------------------------------

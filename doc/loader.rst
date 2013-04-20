@@ -119,3 +119,51 @@ Each XML element must have a `name` attribute, which is the tag the checker will
 look for. Other attributes are mapped to the keyword arguments that are called
 when :func:`load_checker` creates the XCheck object.
 
+If you define your own checker class (see :doc:`rolling`), you can get
+:func:`load_checker`  to accept your class by calling::
+
+    xcheck.loader.LOAD_RULES[name] = YourClass
+
+before you call :func:`load_checker`.
+
+The :func:`load_checker` function recognizes several custom attributes. If your
+custome checker class uses these attributes, :func:`load_cheker` will work.
+
+==============  ================
+attribute       Treated as
+==============  ================
+min             int or decimal
+max             int or decimal
+min_value       int or decimal
+max_value       int or decimal
+
+min_length      int
+max_length      int
+min_occurs      int
+max_occurs      int
+
+required        bool
+unique          bool
+check_children  bool
+
+ordered         bool
+allow_none      bool
+allow_blank     bool
+none_is_false   bool
+
+pattern         string
+delimiter       string [#f1]_
+
+error           exception [#f2]_
+==============  ================
+
+
+
+If you have a custom attribute not listed here, :func:`load_checker` will fail.
+
+.. rubric:: Footnotes
+
+.. [#f1] The :class:`SelectionCheck` class does not have a delimiter, but the
+         definition node does.
+.. [#f2] If the exception class is not in :py:func:`globals()` then
+         :func:`load_checker` will raise an :exc:`UnmatchedError`

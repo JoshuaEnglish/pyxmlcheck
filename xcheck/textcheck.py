@@ -121,7 +121,8 @@ class URLCheck(TextCheck):
     :param allow_blank: allows an empty or blank string instead of a URL
     :type allow_blank: boolean (default False)
 
-    This checker uses the urlparse module from the Python distribution.
+    This checker uses the :py:mod:``urlparse`` module from the Python
+    distribution.
     """
     def __init__(self, name, **kwargs):
         self.allow_none = kwargs.pop('allow_none', True)

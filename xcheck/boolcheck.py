@@ -1,8 +1,5 @@
 from core import XCheck, ET
 
-
-
-## todo: Create a normalization option so normalized values can be replaced with strings
 class BoolCheck(XCheck):
     """BoolCheck(name, **kwargs)
     Checks a various number of things that could be interpreted as True.
@@ -75,69 +72,58 @@ class BoolCheckTC(unittest.TestCase):
     def tearDown(self):
         del self.b
 
-    def testPassWithBoolean(self):
-        "BoolCheck() accepts True or False types"
-        self.failUnless(self.b(True))
-        self.failUnless(self.b(False))
+    def test_valid_true(self):
+        "BoolCheck() accepts several values for 'true'"
+        for x in [True, 'true', 'True', 'TRUE', 't','T',
+                '1',1,'y','Y','YES','yes','Yes']:
+            self.assertTrue(self.b(x))
 
-    def testPassWithBooleanString(self):
-        "BoolCheck() accepts boolean-equivalent strings"
-        self.failUnless(self.b('True'))
-        self.failUnless(self.b('False'))
+    def test_valid_false(self):
+        "Boolcheck() accepts several values for 'false'"
+        for x in [False, 'false','False','FALSE',
+                'no','n','NO','N','f','F',0,'0']:
+            self.assertTrue(self.b(x))
 
-    def testPassWithLowerCaseBoolanString(self):
-        "BoolCheck() accepts boolean-equivalent strings despite capitalization"
-        for x in ['true', 'TRUE', 'false', 'FALSE']:
-            self.failUnless(self.b( x))
+    def test_normalized_true(self):
+        for x in [True, 'true', 'True', 'TRUE', 't','T',
+                '1',1,'y','Y','YES','yes','Yes']:
+            self.assertTrue(self.b(x, normalize=True))
 
-    def testPassWithYesNoAnyCase(self):
-        "BoolCheck() accepts yes and no variants"
-        for x in ['yes', 'YES', 'y', 'Y', 'no', 'NO', 'n', 'N']:
-            self.failUnless(self.b(x))
+    def test_normalized_false(self):
+        for x in [False, 'false','False','FALSE',
+                'no','n','NO','N','f','F',0,'0']:
+            self.assertFalse(self.b(x, normalize=True))
 
-    def testPassWithNoneAsFalse(self):
+    def test_none_as_false(self):
         "BoolCheck() accepts NoneType if none_is_false is True"
         self.b.none_is_false=True
-        self.failUnless(self.b(None))
+        for x in [None, 'none','None','NONE']:
+            self.assertTrue(self.b(x))
+            self.assertFalse(self.b(x, normalize=True))
 
-    def testFailWithoutNoneAnFalse(self):
+    def test_fail_without_none_as_false(self):
         "BoolCheck() fails if NoneType and none_is_false is False"
         self.b.none_is_false = False
-        self.assertRaises(self.b.error, self.b, None)
-
-    def testPassWithNoneAsFalseAndNoneString(self):
-        "BoolCheck() accepts 'None' if none_is_false is True"
-        self.b.none_is_false = True
-        self.failUnless(self.b('None'))
-
-    def testFailWithoutNoneAsFalseandNoneString(self):
-        "BoolCheck() fails with 'none' if none_is_false is False"
-        self.b.none_is_false = False
-        self.assertRaises(self.b.error, self.b, 'none')
+        for x in [None, 'none','None','NONE']:
+            self.assertRaises(self.b.error, self.b, x)
 
     def testPassWithValidString(self):
         "BoolCheck() accepts a variety of positive and negative strings"
         for x in ['true','yes','1','t','y','false','no','0','f','n']:
-            self.failUnless(self.b(x))
-            self.failUnless(self.b(x.upper()))
-            self.failUnless(self.b(x.title()))
+            self.assertTrue(self.b(x))
+            self.assertTrue(self.b(x.upper()))
+            self.assertTrue(self.b(x.title()))
 
     def testPassWithXMLText(self):
         "BoolCheck() accepts xml-formatting string"
         for x in ['true','yes','1','t','y','false','no','0','f','n']:
-            self.failUnless(self.b('<flag>%s</flag>' % x))
+            self.assertTrue(self.b('<flag>%s</flag>' % x))
 
     def testPassWithElement(self):
         "BoolCheck() accepts xml-formatting string"
         for x in ['true','yes','1','t','y','false','no','0','f','n']:
-            self.failUnless(self.b(ET.fromstring('<flag>%s</flag>' % x) ) )
+            self.assertTrue(self.b(ET.fromstring('<flag>%s</flag>' % x) ) )
 
-    def testNormalizedValues(self):
-        "Boolcheck() returns the correct normalized value"
-        for x in ['true','yes','1','t','y']:
-            self.assertTrue(self.b(x, normalize=True))
-        for x in ['false','no','0','f','n']:
-            self.assertFalse(self.b(x, normalize=True))
 
     def test_as_string(self):
         for x in ['true','yes','1','t','y', 'TRUE', 'YES', 'Y', True]:
