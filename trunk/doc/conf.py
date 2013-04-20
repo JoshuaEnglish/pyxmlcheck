@@ -25,7 +25,8 @@ import sys, os
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.coverage','sphinx.ext.autodoc']
+extensions = ['sphinx.ext.coverage','sphinx.ext.autodoc',
+    'sphinx.ext.intersphinx']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -62,6 +63,10 @@ release = '0.6.7'
 # Else, today_fmt is used as the format for a strftime call.
 #today_fmt = '%B %d, %Y'
 
+rst_epilog = """
+.. |xml| replace:: :abbr:`XML (Extensible Markup Language)`
+"""
+
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = ['_build']
@@ -86,17 +91,32 @@ pygments_style = 'sphinx'
 # A list of ignored prefixes for module index sorting.
 #modindex_common_prefix = []
 
+# Example configuration for intersphinx: refer to the Python standard library.
+intersphinx_mapping = {'http://docs.python.org/2/': None}
 
 # -- Options for HTML output ---------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'haiku'
+html_theme = 'default'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#html_theme_options = {}
+html_theme_options = {
+                      # 'nosidebar': True,
+                      'sidebarbgcolor': '#1E56B5',
+                      'relbarbgcolor': '#3626BC',
+                      'linkcolor': '#3626BC',
+                      'sidebarlinkcolor': '#3626BC',
+                      'footerbgcolor': '#FFFFFF',
+                      'footertextcolor': '#3626BC',
+                      'headtextcolor': '#3626BC',
+                      'codebgcolor': '#FFDA96',
+                      'headbgcolor': '#FFFFFF',
+                      'sidebarlinkcolor': '#FFDA96',
+
+                      }
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
@@ -110,7 +130,7 @@ html_theme = 'haiku'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-#html_logo = None
+html_logo = '_static/logo.png'
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32

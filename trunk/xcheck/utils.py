@@ -10,7 +10,8 @@ def get_bool(item):
     Return False if item is a False, 0, No, F, or N
     Raises a ValueError if anything else
 
-    get_bool is case-insensitive
+    get_bool() is case-insensitive.
+    get_bool() raises a :py:exc:ValueError if item cannot be parsed.
     """
 
     if str(item).lower() in ['true','yes','1','t','y']:

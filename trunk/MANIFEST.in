@@ -1,3 +1,4 @@
 include TODO.txt
+include Changes
 
 recursive-include docs *.html *.css *.png

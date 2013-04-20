@@ -1,36 +1,38 @@
-.. pyxmlcheck documentation master file, created by
-   sphinx-quickstart on Sat Mar 16 12:48:31 2013.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
+XMLCheck
+========
 
-Welcome to pyxmlcheck's documentation!
-======================================
+The ``XCheck`` class and its subclasses provide tools for
+validating |xml|-Data.
 
-The :class:`XCheck` class and its subclasses provide tools for
-validating XML-Data.
 
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
+   getting_started
    overview
    xcheck
    textcheck
    selectioncheck
    datacheck
-   rolling
+
+.. toctree::
+   :maxdepth: 1
+
    wrap
    loader
    errors
+   rolling
+
+.. toctree::
+   :maxdepth: 1
+
+   callingxcheck
    history
+   colophon
 
 
-Indices and tables
-==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 

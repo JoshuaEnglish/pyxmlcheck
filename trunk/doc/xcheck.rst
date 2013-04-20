@@ -7,92 +7,86 @@
 .. moduleauthor:: Josh English <Joshua.R.English@gmail.com>
 
 The :mod:`xcheck` module contains classes for validating XML elements. It uses
-the :mod:`ElementTree` interface.
+the :py:mod:`ElementTree` interface.
 
 
+The Master Class
+------------------
 
-:class:`xcheck` -- The Master Class
--------------------------------------------------
-
-:class:`xcheck` defines the structure of the XML data, and validates
-XML data
+:class:`xcheck` defines the structure of an |xml|-Data node, and validates
+|xml|-Data nodes.
 
 .. class:: XCheck(name, [**kwargs])
 
-    This is the default XCheck object that can handle attributes and children
+    This is the default XCheck object that can handle attributes and children.
+    All other checkers are subclasses of XCheck.
 
-    .. attribute:: name
+    :keyword string name: This is the name of the |xml| element tag.
 
-        required. This is the name of the XML element tag the checker will validate.
+    :keyword int min_occurs: Minimum number of times this element can occur. To
+                             make an element optional set this to 0.
+                             If the checker represents an |xml| attribute, use
+                             :attr:`required` instead.
+                             (default = 1)
 
-    .. attribute:: min_occurs ([default = 1])
+    :keyword int max_occurs: Maximum number of times this element can occur.
+                             (default = 1)
 
-        The minimum number of times the element must appear as a child.
-        To make an element optional, set  `min_occurs` to 0.
+    :keyword Exception error: The default error for this checker, assuming some
+                              other, more logical, error is thrown.
+                              (defaut = :exc:`XCheckError`)
 
-    .. attribute:: max_occurs ([default = 1])
+    :keyword list children: A list of check objects. This list can be populated
+                            with the :meth:'add_child` method.
+                            (default = [] )
 
-        The maximum number of times the element can appear
+    :keyword bool check_children: Default behavior for checking children of an
+                                  |xml| node.
 
-    .. attribute:: error ( [XCheckError] )
+    :keyword bool ordered: If true, the children listed in the checker should
+                           match the order of the |xml| node being checked. If
+                           false, then the order will not matter.
 
-        Failing to validate raises an exception. Some Exceptions are
-        standardized, but custom errors can have their own Exceptions
+    :keyword dict attributes: A dictionary of attributes for the checker. This
+                              dictionary can be populated with the
+                              :meth:`add_attribute` method.
 
-        The Exception class should be a subclass of XCheckError.
+    :keyword bool required: Only applies to checkers for |xml| attributes.
+                            (default=True)
 
-    .. attribute:: children([default = [] ])
+    :keyword bool unique: Only applies to attributes.
 
-        A list of children check object. This list can also be populated with
-        the :meth:`addchild` method below.
+    :keyword str helpstr: A short descriptor of the checker. This is useful
+                          for introspection or GUI applications.
 
-    .. attribute:: check_children([True])
+    .. note ::
+        There is an interface for XCheck written in wxPython. It will be
+        released in 2013. This will use the required and helpstr attributes
 
-        If true, the default behavior of the xcheck will be to check all
-        children. This can still be overridden when calling an XCheck object.
+    .. deprecated::
+        The check_children paramater will most likely be removed in future
+        versions.
 
-    .. attribute:: ordered [True]
+    XCheck objects have the following properties:
 
-        If **True**, the child elements must be in order according to
-        the order according the `xcheck.children` list.
+    .. attribute:: name (read-only)
 
-        If **False**, the order does not matter, but everything else is
-        checked.
+        Returns the name of the checker.
 
-    .. attribute:: attributes([default = {} ] )
 
-        A dictionary of attributes for the element. This dictionary can
-        also be populated with the :meth:`addattribute` method below.
+    .. attribute:: has_children
 
-    .. attribute:: required([default = True])
+        Returns true if there are children present in the validator
 
-        A boolean value for XML Attribute checkers.
-        XChecx objects will fail if a required attribute
-        is not found, but let go an attribute that is not required.
+    .. attribute:: has_attributes
 
-        Any attributes that are found will be checked.
+        Returs true if the xcheck object expects attributes
 
-    .. attribute:: unique([default = False])
 
-        If true, the attribute value must be unique among all elements
-        with the same tag name.
+Creation Methods
+^^^^^^^^^^^^^^^^
 
-        .. note ::
-
-            This attribute does nothing within the context of XCheck itself.
-            This attribute is used by the pyxmldb package.
-
-    .. attribute:: helpstr([default = None])
-
-        A short descriptor of the checker. Can be useful in introspection
-        or for GUI applications.
-
-        .. note ::
-
-            There is an interface for XCheck written in wxPython. It will be
-            released in 2013.
-
-    XCheck classes have the following methods:
+    XCheck objects have the following methods useful in creation:
 
     .. method:: add_child( children )
 
@@ -117,15 +111,16 @@ XML data
 
         If passing a list, unpack it.
 
-    XCheck classes have the following methods:
-
-    .. attribute:: name
-
-        returns the name of the checker.
-
     .. method:: is_att(tag)
 
         returns **True** if the tag represents an attribute in the checker object
+
+
+Usage Methods
+^^^^^^^^^^^^^
+
+    The following methods are useful when using the :class:`xcheck`-derived
+    objects.
 
     .. method:: to_dict(node)
 
@@ -134,14 +129,6 @@ XML data
     .. method from_dict(dict)
 
         Creates a node from a dictionary, according to the rules of the checker
-
-    .. attribute:: has_children
-
-        Returns true if there are children present in the validator
-
-    .. attribute:: has_attributes
-
-        Returs true if the xcheck object expects attributes
 
     .. method:: has_attribute(tag)
 
@@ -167,32 +154,42 @@ XML data
 
         Returns a formatted xpath string.
 
-    XCheck classes are callable, and rely on two helper methods.
 
-    .. method:: checkContent( item )
 
-        checkContent returns a boolean value, but should raise
-        a custom Exception if validation failed.
-
-    .. method:: nomalizeContent( item )
-
-        Unimplemented in version 1.0.0. Future development may use the
-        xcheck to change the content it was passed and return
-        the item
-
+Node Manipulation Methods
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
     The following methods allow an XCheck object to manipulate nodes.
 
-    .. automethod :: insert_node(parent, child)
+    .. method :: insert_node(parent, child)
 
-    .. automethod :: sort_children(parent, child_name, sortkey[, reverse=False])
+        Takes a node and inserts a child node, based on the organiziational
+        rules of the checker.
 
-    .. automethod :: to_definition_node
+        :param parent, child: ElementTree.Elements to manipulate
 
-    see :func:`load_checker` for more information on the definition node.
+        .. warning::
+
+            Only works on first-generation children of the checker!
+
+    .. method :: sort_children(parent, child_name, sortkey[, reverse=False])
+
+        Sorts children of a node according to sortkey.
+
+        :param parent: ElementTree.Element
+        :param child_name: string
+        :param sortkey: passed to a call to :py:func:`sorted`
+        :param reverse: passet to a call to :py:func:`sorted`
+
+    .. method :: to_definition_node()
+
+        Creates an ElementTree.Element that represents the checker tree,
+        not data that can be checked by the checker.
+
+        see :func:`load_checker` for more information on the definition node.
 
 
-Calling an `xcheck` object
+Calling a Checker
 ---------------------------
 
 Calling an :class:`xcheck` object validates whatever is passed to it:
@@ -206,21 +203,40 @@ Calling an :class:`xcheck` object validates whatever is passed to it:
 
     Validates the data
 
-    :param check_children: overrides the instance attribuet for the current call.
-    :type check_children: boolean
-    :param normalize: returns a normalized value intstead of **True** or **False**
-    :type normalize: boolean
-    :param verbose: prints a report as the checker processes
-    :type verbose: boolean
-    :param as_string: return a string representation of the checked value instead of the normalized value.
-    :type as_string: boolean
+    :param bool check_children: overrides the instance attribuet for the
+                                current call.
+    :param bool normalize: returns a normalized value intstead of
+                           **True** or **False**
+    :param boolean verbose: prints a report as the checker processes
+    :param boolean as_string: return a string representation of the
+                              checked value instead of the normalized value.
 
-The `normalize` and `as_string` parameters do nothing with XCheck objects. They
-are useful for the subclasses.
+    .. note::
+        The `normalize` and `as_string` parameters do nothing with XCheck
+        objects. They are useful for the subclasses.
 
-The `verbose` parameter will be relpaced in future, relying on the :py:mod:`logging` module.
+    .. note::
+        The `verbose` parameter will be relpaced in future, relying on the
+        :py:mod:`logging` module.
 
+__call__ helper methods
+^^^^^^^^^^^^^^^^^^^^^^^
 
+    XCheck classes are callable, and rely on two helper methods. For more
+    information and examples, see :doc:`rolling`.
+
+    .. method:: check_content( item )
+
+        Checks the item against the checker's rules (either an attribute value
+        or node text) and returns a boolean value.
+
+        This method can also raise an error. Errors should be consistent with
+        Python. See :doc:`errors` for more information.
+
+    .. method:: nomalize_content( item )
+
+       Uses the checker's normalization rules without checking the validity
+       of the item being normalized.
 
 
 

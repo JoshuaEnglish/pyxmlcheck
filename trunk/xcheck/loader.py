@@ -97,6 +97,7 @@ def load_checker(node):
     if children is not None:
         for child in children:
             ch.add_child(load_checker(child))
+
     return ch
 
 import unittest
