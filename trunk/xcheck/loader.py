@@ -81,6 +81,8 @@ def load_checker(node):
         if key in ['error']:
             if val in globals():
                 val = globals()[val]
+            elif val in __builtins__:
+                val = __builtins__[val]
             else:
                 val = UnmatchedError
         new_atts[key] = val
@@ -201,6 +203,18 @@ class LoaderTC(unittest.TestCase):
         self.assertRaises(NoSelectionError,load_checker,'<selection name="fail" />')
         self.assertRaises(NoSelectionError,load_checker,'<selection name="fail" values="" />')
 
+    def test_selection_situ(self):
+        ch = load_checker('<selection name="grade" values="inmail, reject, sold, soldplus, marketdead, toolong" />')
+        ch = load_checker('<selection name="status" values="inmail, reject, sold, withdrawn">a</selection>')
+        ch = load_checker('''<selection name="status" values="inmail,reject,sold,withdrawn">
+        <attributes>
+            <selection name="grade"
+                values="inmail, reject, sold, soldplus, marketdead, toolong" />
+        </attributes>
+    </selection>''')
+        self.assertIsInstance(ch, SelectionCheck)
+
+
     def test_int(self):
         ch = load_checker('<int name="value" />')
         self.assertEqual(ch.min, NINF)
@@ -288,7 +302,7 @@ class LoaderTC(unittest.TestCase):
 
     def test_load_errors(self):
         ch = load_checker("<text name='oops' error='TypeError' />")
-        self.assertTrue(issubclass(ch.error, XCheckError))
+        self.assertFalse(issubclass(ch.error, XCheckError), "load_checker is using a bad error %s" % ch.error)
 
     def test_uknown_error(self):
         "load_checker() substitutes UnmatchedError if custom error doesn't exist"
@@ -304,7 +318,7 @@ class LoaderTC(unittest.TestCase):
 
 
 if __name__=='__main__':
-    logger = logging.getLogger()
-    logger.setLevel(logging.CRITICAL)
+##    logger = logging.getLogger()
+##    logger.setLevel(logging.CRITICAL)
 
     unittest.main(verbosity=1)

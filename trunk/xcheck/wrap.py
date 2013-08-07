@@ -15,13 +15,15 @@ class Wrap(object):
 
     """
     def __init__(self, ch, elem=None):
-        ch(elem)
+
+
         self._checker = ch
         if elem is None:
             elem = ch.dummy_element()
         else:
             elem = get_elem(elem)
         self._elem = elem
+        self._checker(self._elem)
 
     def _get_att(self, att_name, normalize=True):
         """_get_att(name, [normalize=True]
