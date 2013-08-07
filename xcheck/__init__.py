@@ -10,7 +10,7 @@ How to use:
 3. Customize the normalizeValue function if necessary
 
 """
-__version__ = '0.6.7'
+__version__ = '0.6.8'
 
 
 

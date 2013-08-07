@@ -6,6 +6,7 @@ Release 0.6.8 -
 
 * Fixed bug in BoolCheck where ``none_is_false`` wasn't worknig
 * Lots of documentation cleanup and fixes
+* Fixed bug in Wrap that tried to check non-existent elements
 
 Release 0.6.7 - April 16, 2013
 ------------------------------

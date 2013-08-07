@@ -8,6 +8,7 @@ from boolcheck import BoolCheck
 from numbercheck import IntCheck
 from listcheck import ListCheck, SelectionCheck
 from textcheck import TextCheck, EmailCheck
+from datetimecheck import DatetimeCheck
 
 
 __all__ = ['node_to_dict', 'dict_to_node']
@@ -22,7 +23,7 @@ def node_to_dict(node, checker):
         val = node.get(key)
 
         if val is not None:
-            val = attch(val, normalize=True)
+            val = attch(val, normalize=True, as_string=True)
             res["%s.%s" % (checker.name, key)] = val
 
     if checker.children:
@@ -48,7 +49,7 @@ def node_to_dict(node, checker):
         res[checker.name] = checker(text, normalize=True)
     return res
 
-AS_STRING_CLASSES = (BoolCheck, ListCheck, IntCheck)
+AS_STRING_CLASSES = (BoolCheck, ListCheck, IntCheck, DatetimeCheck)
 
 def dict_to_node(input_dict, checker):
     """Creates an ElementTree.Element based on the dictionary.

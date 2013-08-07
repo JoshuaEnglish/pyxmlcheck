@@ -92,7 +92,7 @@ pygments_style = 'sphinx'
 #modindex_common_prefix = []
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'http://docs.python.org/2/': None}
+intersphinx_mapping = {'python':('http://docs.python.org/2/', None)}
 
 # -- Options for HTML output ---------------------------------------------------
 
