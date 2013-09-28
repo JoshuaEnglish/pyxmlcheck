@@ -32,7 +32,7 @@ class IntCheck(XCheck):
         if self.as_string:
             self._normalized_value = str(self._normalized_value)
 
-    def check_content(self, item):
+    def check_content_old(self, item):
         logging.debug("check_content(%s) type %s" % (item, type(item)))
         ok = None
         try:
@@ -55,6 +55,21 @@ class IntCheck(XCheck):
         ok = self.min <= data <= self.max
         if not ok:
             raise self.error("item out of bounds")
+        self.normalize_content(item)
+        return ok
+
+    def check_content(self, item):
+        logging.debug('check_content(%s) type %s' % (item, type(item)))
+        ok = None
+        item = float(item)
+        data = int(item)
+
+        if item != data:
+            raise ValueError("Item not an integer")
+
+        ok = self.min <= data <= self.max
+        if not ok:
+            raise self.error("item is out of bounds")
         self.normalize_content(item)
         return ok
 
@@ -165,7 +180,7 @@ class IntCheckTC(unittest.TestCase):
 
     def test_fail_with_float(self):
         "IntCheck() raises TypeError when passed with non-integral float"
-        self.assertRaises(TypeError, self.t, 5.6)
+        self.assertRaises(ValueError, self.t, 5.6)
 
     def test_fail_with_oob_string(self):
         "IntCheck() fails with out-of-bounds integral string"
@@ -173,15 +188,15 @@ class IntCheckTC(unittest.TestCase):
 
     def test_fail_with_float_string(self):
         "IntCheck() fails when passed float-equivalent string"
-        self.assertRaises(TypeError, self.t, '5.6')
+        self.assertRaises(ValueError, self.t, '5.6')
 
     def test_fail_with_float_elem(self):
         "IntCheck() raises ValueError with element.text as non-integral float"
-        self.assertRaises(TypeError, self.t, ET.fromstring('<test>5.5</test>') )
+        self.assertRaises(ValueError, self.t, ET.fromstring('<test>5.5</test>') )
 
     def test_fail_with_float_elem_string(self):
         "IntCheck() fails with xml-formatting string as non integral float"
-        self.assertRaises(TypeError, self.t, '<test>5.4</test>')
+        self.assertRaises(ValueError, self.t, '<test>5.4</test>')
 
     def test_fail_with_oob_element(self):
         "IntCheck() fails with element.text as out-of-bounds integer"

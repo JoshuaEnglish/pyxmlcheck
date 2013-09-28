@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(name="XMLCheck",
-    version="0.6.8",
+    version="0.7.0",
     author = 'Joshua R. English',
     author_email = 'Joshua.R.English@gmail.com',
     url = 'https://code.google.com/p/pyxmlcheck/',

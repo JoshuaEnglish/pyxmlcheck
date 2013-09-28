@@ -23,7 +23,7 @@ def node_to_dict(node, checker):
         val = node.get(key)
 
         if val is not None:
-            val = attch(val, normalize=True, as_string=True)
+            val = attch(val, normalize=True) # cut as_string=True
             res["%s.%s" % (checker.name, key)] = val
 
     if checker.children:
@@ -110,7 +110,7 @@ def local_test():
     first_name.addattribute(nick)
 
     last_name = TextCheck('last', min_length = 1)
-    code = IntCheck('code', minOccurs=1, max_occurs=5)
+    code = IntCheck('code', min_occurs=1, max_occurs=5)
     code.addattribute(TextCheck('word', required=False) )
     name = XCheck('name', children=[first_name, last_name, code])
 

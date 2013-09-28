@@ -23,6 +23,7 @@ LOAD_RULES = {'xcheck': XCheck,
 
 class XCheckLoadError(XCheckError): pass
 class UnmatchedError(XCheckError): pass
+class BadCallbackError(XCheckError): pass
 
 INT_ATTRIBUTES = ['min_length', 'max_length', 'min_occurs',
             'max_occurs', ]
@@ -40,11 +41,14 @@ def num_or_inf(val, func):
     else:
         return func(val)
 
-def load_checker(node):
+def load_checker(node, namespace=None):
     "takes an elementtree.element node and recreates the checker"
     node = get_elem(node)
     if node.tag not in LOAD_RULES:
         raise XCheckLoadError, "Cannot create checker for %s" % node.tag
+
+    if namespace is None:
+        namespace = {}
 
     new_atts = {}
 
@@ -55,7 +59,6 @@ def load_checker(node):
         if key == 'delimiter':
             if node.tag == 'list':
                 val = delimiter
-
 
         val = node.get(key)
 
@@ -80,11 +83,33 @@ def load_checker(node):
 
         if key in ['error']:
             if val in globals():
-                val = globals()[val]
+                _val = globals()[val]
             elif val in __builtins__:
-                val = __builtins__[val]
+                _val = __builtins__[val]
+            elif val in namespace:
+                _val = namespace[val]
             else:
-                val = UnmatchedError
+                _val = UnmatchedError
+            val = _val
+
+        if key in ['callback']:
+            if val in globals():
+                _val = globals()[val]
+            elif val in locals():
+                _val = locals()[val]
+            elif val in __builtins__:
+                _val = __builtins__[val]
+            elif callable(val):
+                _val = val
+            elif val in namespace:
+                _val = namespace[val]
+            else:
+                try:
+                    _val = eval(val)
+                except Exception as E:
+                    raise BadCallbackError(E)
+            val = _val
+
         new_atts[key] = val
 
     ch = LOAD_RULES[node.tag](**new_atts)
@@ -93,12 +118,12 @@ def load_checker(node):
     attributes = node.find('attributes')
     if attributes is not None:
         for att in attributes:
-            ch.addattribute(load_checker(att))
+            ch.addattribute(load_checker(att, namespace))
 
     children = node.find('children')
     if children is not None:
         for child in children:
-            ch.add_child(load_checker(child))
+            ch.add_child(load_checker(child, namespace))
 
     return ch
 
@@ -106,6 +131,9 @@ import unittest
 from utils import get_bool
 import datetime
 class OopsError(XCheckError): pass
+
+def getvals():
+            return ['a','b','c']
 
 class LoaderTC(unittest.TestCase):
 
@@ -200,12 +228,14 @@ class LoaderTC(unittest.TestCase):
         self.assertFalse(ch.ignore_case)
 
     def test_selection_failure(self):
-        self.assertRaises(NoSelectionError,load_checker,'<selection name="fail" />')
-        self.assertRaises(NoSelectionError,load_checker,'<selection name="fail" values="" />')
+        self.assertRaises(NoSelectionError, load_checker, '<selection name="fail" />')
+        self.assertRaises(NoSelectionError, load_checker, '<selection name="fail" values="" />')
 
     def test_selection_situ(self):
         ch = load_checker('<selection name="grade" values="inmail, reject, sold, soldplus, marketdead, toolong" />')
+        self.assertIsInstance(ch, SelectionCheck)
         ch = load_checker('<selection name="status" values="inmail, reject, sold, withdrawn">a</selection>')
+        self.assertIsInstance(ch, SelectionCheck)
         ch = load_checker('''<selection name="status" values="inmail,reject,sold,withdrawn">
         <attributes>
             <selection name="grade"
@@ -214,6 +244,11 @@ class LoaderTC(unittest.TestCase):
     </selection>''')
         self.assertIsInstance(ch, SelectionCheck)
 
+    def test_selection_with_callback(self):
+        ch = load_checker('<selection name="letter" callback="getvals" />')
+        self.assertIsInstance(ch, SelectionCheck)
+        self.assertTrue(callable(ch.callback), "loader did not create callable callback")
+        self.assertTrue(ch('a'))
 
     def test_int(self):
         ch = load_checker('<int name="value" />')
@@ -261,6 +296,21 @@ class LoaderTC(unittest.TestCase):
         self.assertEqual(ch.max_items, 10)
         self.assertTrue(ch.allow_duplicates)
         self.assertTrue(ch.ignore_case)
+
+    def test_list_with_callback(self):
+        ch = load_checker('<list name="letter" callback="getvals" />')
+        self.assertIsInstance(ch, ListCheck)
+        self.assertTrue(callable(ch.callback), "loader did not create callable callback")
+        self.assertTrue(ch('a'), "loaded checker did not accept valid input")
+        self.assertRaises(ch.error, ch, "d")
+
+    def test_list_callback_with_namespace(self):
+        ch =load_checker('<list name="letter" callback="frank" />', {'frank': getvals})
+        self.assertIsInstance(ch, ListCheck)
+        self.assertTrue(callable(ch.callback), "loader did not create callable callback")
+        self.assertTrue(ch('a'), "loaded checker did not accept valid input")
+        self.assertRaises(ch.error, ch, "d")
+
 
     def test_datetime(self):
         ch = load_checker('<datetime name="sent" />')
@@ -321,4 +371,4 @@ if __name__=='__main__':
 ##    logger = logging.getLogger()
 ##    logger.setLevel(logging.CRITICAL)
 
-    unittest.main(verbosity=1)
+    unittest.main(verbosity=0)

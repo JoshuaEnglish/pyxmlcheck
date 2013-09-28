@@ -84,8 +84,8 @@ class XCheck(object):
     """
     def __init__(self, name, **kwargs):
         self.name_ = name    # required (cannot be changed)
-        self.min_occurs = 1  # number of times the element
-        self.max_occurs = 1  # can appear in the parent (if any)
+        self.min_occurs = int(kwargs.pop('min_occurs',1))  # number of times the element
+        self.max_occurs = int(kwargs.pop('max_occurs',1)) # can appear in the parent (if any)
         self.children = []
 
         #XML attribute related
