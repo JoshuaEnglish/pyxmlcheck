@@ -52,3 +52,29 @@ def indent(elem, level=0):
             elem.tail = i
         else:
             elem.tail="\n"
+
+def list_requirements(checker, prefix=None):
+    """
+    lists the required attributes and children of a checker.
+    Returns a list of tuples
+    """
+    res = []
+    for att in checker.attributes.values():
+        if att.required:
+            if prefix:
+                res.append(prefix + (att.name,))
+            else:
+                res.append((att.name,))
+
+    for child in checker.children:
+        if child.has_children:
+            _prefix = (prefix + checker.name) if prefix else (checker.name,)
+            res.extend(list_requirements(child, _prefix))
+        elif child.min_occurs > 0:
+            if prefix:
+                res.append(prefix + (child.name,))
+            else:
+                res.append((child.name,))
+
+
+    return res

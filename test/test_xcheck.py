@@ -123,6 +123,10 @@ class XCheckTC(unittest.TestCase):
         ach = check.get('attribute')
         self.assertEqual(ach.name, 'attribute')
 
+    def test_coerce_attributes(self):
+        test_check = XCheck('child', min_occurs="0")
+        self.assertEqual(test_check.min_occurs, 0, "Did not coerce min_occurs attribute")
+
 class AttributesTC(unittest.TestCase):
     def setUp(self):
         self.val = IntCheck('val', min=1, max=10, error=TypeError)
@@ -445,7 +449,8 @@ class EmailCheckTC(unittest.TestCase):
 class IntCheckTC(unittest.TestCase):
     "These test if the defaults are created properly"
     def setUp(self):
-        self.t = IntCheck('test', min=1, max = 10)
+        self.t = IntCheck('test', min=1, max = 20)
+
     def tearDown(self):
         del self.t
 
@@ -457,6 +462,7 @@ class IntCheckTC(unittest.TestCase):
     def testPassWithValidString(self):
         "IntCheck() accepts integer-equivalent string"
         self.failUnless(self.t( '6'))
+        self.failUnless(self.t('19'))
 
     def testPassWithValidFloat(self):
         "IntCheck() accepts with integer-equivalent float"
@@ -481,7 +487,7 @@ class IntCheckTC(unittest.TestCase):
 
     def testFailWithFloat(self):
         "IntCheck() raises TypeError when passed with non-integral float"
-        self.assertRaises(TypeError, self.t, 5.6)
+        self.assertRaises(ValueError, self.t, 5.6)
 
     def testFailWithOOBString(self):
         "IntCheck() fails with out-of-bounds integral string"
@@ -492,7 +498,7 @@ class IntCheckTC(unittest.TestCase):
         self.assertRaises(ValueError, self.t, '5.6')
 
     def testFailWithFloatElem(self):
-        "IntCheck() raises ValueError with element.text as non-integral float"
+        "IntCheck() raises TypeError with element.text as non-integral float"
         self.assertRaises(ValueError, self.t, ET.fromstring('<test>5.5</test>') )
 
     def testFailWithFloatElemString(self):
@@ -740,59 +746,62 @@ class DatetimeCheckTC(unittest.TestCase):
     def tearDown(self):
         del self.d
 
-    def testDefaults(self):
+    def test_defaults(self):
         "DatetimeCheck creates appropriate default values"
         self.assertFalse(self.d.allow_none, "allow_none not False")
-        self.assertEqual(self.d.format, "%a %b %d %H:%M:%S %Y", "format not the default")
+        self.assertEqual(self.d.format, "%a %b %d %H:%M:%S %Y",
+            "format not the default")
         self.assertEqual(self.d.formats, [], "formats not an empty list")
 
-    def testCustomizedAttributes(self):
+    def test_custom_attributes(self):
         "DatetimeCheck customizes attrbutes"
         d = DatetimeCheck('date', allow_none=True, format="%b-%d-%Y",
             formats = ['%d-%m-%Y',])
         self.assertTrue(d.allow_none, "allow_none not customized")
         self.assertEqual(d.format, '%b-%d-%Y', 'format not customised')
-        self.assertEqual(d.formats, [ '%d-%m-%Y'])
+        self.assertEqual(d.formats, ['%d-%m-%Y'])
 
-    def testDefaultFormat(self):
+    def test_default_format(self):
         "DatetimeCheck() accepts the default Datetime"
-        self.failUnless(self.d('Mon Oct 26 22:20:43 2009'), "cannot parse default date")
+        self.failUnless(self.d('Mon Oct 26 22:20:43 2009'),
+            "cannot parse default date")
 
-    def testCustomFormat(self):
+    def test_custom_format(self):
         "DatetimeCheck() accepts a custom format"
         d = DatetimeCheck('test', format="%Y%m%d%H%M%S")
         self.failUnless(d('20090101122042'), 'cannot parse custom date')
 
-    def testDatetimeObject(self):
+    def test_datetime_object(self):
         "DatetimeCheck() returns a Datetime.Datetime object when requested"
         dt = self.d("Mon Oct 26 14:52:42 2009", as_datetime=True)
         self.assertIsInstance(dt, datetime.datetime,
             "Did not return a datetime.datetime object")
 
-    def testTimeStructObject(self):
+    def test_as_struct(self):
         "DatetimeCheck() returns a time.struct_time object when requested"
         dt = self.d("Mon Oct 26 09:00:00 2009", as_struct=True)
         self.assertIsInstance(dt, time.struct_time,
             "Did not return a time.struct_time object")
 
-    def testTimeStringResult(self):
-        "DatetimeCheck() returns a string by default"
-        dt = self.d("Sat Jul 14 11:00:00 2001")
-        self.assertTrue(isinstance(dt, basestring), "Did not return a string by default")
+    def test_as_string(self):
+        "DatetimeCheck() returns a string by when requested"
+        dt = self.d("Sat Jul 14 11:00:00 2001", as_string=True)
+        self.assertTrue(isinstance(dt, basestring),
+            "Did not return a string by default")
 
-    def testBooleanResult(self):
-        "DatetimeCheck() return a boolean if all _asXXX options are false"
+    def test_boolean_result(self):
+        "DatetimeCheck() return a boolean if all as_xxx options are False"
         dt = self.d("Sat Jul 14 11:00:00 2001", as_string = False)
         self.assertTrue(isinstance(dt, bool), "Did not return a boolean")
 
-    def testDateOutOfBounds(self):
+    def test_date_out_of_bounds(self):
         "DatetimeCheck() fails if date is out of range"
         d = DatetimeCheck('test', format="%m/%d/%Y",
             min_datetime = "10/1/2009",
             max_datetime = "10/31/2009")
         self.assertRaises(self.d.error, d, "9/30/2009")
 
-    def testMonthAndDayOnly(self):
+    def test_month_and_day_only(self):
         "DatetimeCheck() accepts month and day only"
         d = DatetimeCheck('mday', format="%b %d", min_datetime="Oct 10",
             max_datetime="Oct 20")
@@ -800,20 +809,24 @@ class DatetimeCheckTC(unittest.TestCase):
         self.assertRaises(d.error, d, 'Oct 9')
         self.assertRaises(d.error, d, 'Nov 1')
 
-    def testFormatLists(self):
+    def test_format_lists(self):
         "DatetimeCheck() handles a list of formats"
         d = DatetimeCheck('formatlist', formats=['%b %d', '%b %d %Y'])
-        self.failUnless(d('Oct 1'), "DatetimeCheck() cannot handle the first format")
-        self.failUnless(d('Jan 1 2000'), "DatetimeCheck() cannot handle the second format")
+        self.failUnless(d('Oct 1'),
+            "DatetimeCheck() cannot handle the first format")
+        self.failUnless(d('Jan 1 2000'),
+            "DatetimeCheck() cannot handle the second format")
 
-    def testAllowNone(self):
+    def test_allow_none(self):
         "DatetimeCheck() allows None, optionally"
         d = DatetimeCheck('date', allow_none = True)
         self.failUnless(d('None'), "Fails to accept string None")
         self.failUnless(d(None), "Fails to accept None type")
         self.failUnless(d('<date>None</date>'), "Fails to accept string-node")
-        self.failUnless(d('<date>none</date>'), "Fails to accept 'none' as node text")
+        self.failUnless(d('<date>none</date>'),
+            "DatetimeCheck() fails to accept 'none' as node text")
         self.failUnless(d('none'), "Fails to accept 'none' as text")
+
 
 class RenameTC(unittest.TestCase):
     def testRename(self):
@@ -1097,7 +1110,7 @@ class DummyValueTC(unittest.TestCase):
     def test_Datetimedummy(self):
         "DatetimeCheck.dummy_value() should return the minimum date"
         import datetime
-        mindate = Datetime.Datetime.min.replace(year=1900)
+        mindate = datetime.datetime.min.replace(year=1900)
         d = DatetimeCheck('name')
         self.assertEqual(mindate.strftime(d.format), d.dummy_value())
 
@@ -1448,7 +1461,8 @@ class LoaderTC(unittest.TestCase):
 
     def test_load_errors(self):
         ch = load_checker("<text name='oops' error='TypeError' />")
-        self.assertTrue(issubclass(ch.error, XCheckError))
+        self.assertTrue(issubclass(ch.error, TypeError))
+
 
 class TestWrap3(unittest.TestCase):
     def test_wrap_string(self):
@@ -1482,6 +1496,4 @@ class TestWrap3(unittest.TestCase):
         self.assertEqual(empty_example._get_elem_value('item'),'one')
 
 if __name__=='__main__':
-    import xcheck
-    print xcheck
     unittest.main(verbosity=0)

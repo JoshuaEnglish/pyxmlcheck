@@ -1,12 +1,29 @@
 Changes in XMLCheck
---------------------
+===================
 
-Release 0.6.8 -
+Release 0.7.0 -
 ------------------------------
+
+New Features
+^^^^^^^^^^^^
+
+* Added callback feature in ListCheck and SelectionCheck
+* Added utils.list_requirements
+
+Bug Fixes
+^^^^^^^^^
 
 * Fixed bug in BoolCheck where ``none_is_false`` wasn't worknig
 * Lots of documentation cleanup and fixes
 * Fixed bug in Wrap that tried to check non-existent elements
+* Fixed bug in :func:`load_checker` that assigned the wrong error
+* Fixed bug #6: passing a checker attribute as a string was not being coerced
+
+Other changes
+^^^^^^^^^^^^^^
+
+* Passing floats or string representation of floats to IntCheck
+  raises a TypeError
 
 Release 0.6.7 - April 16, 2013
 ------------------------------

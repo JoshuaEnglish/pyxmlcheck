@@ -47,6 +47,7 @@ ListCheck --- Multiple Enumerated Values
     :type delimiter: string
     :param values: acceptable values for the list items
     :type values: list
+    :param func callback: function that provides callbacks at check time
     :param allow_duplicates: determines if list items must be unique
     :type allow_dupliates: boolean
     :param min_items: minimum number of items that should be in the list
@@ -72,3 +73,6 @@ There isn't much difference between :class:`SelectionCheck` and
 :class:`ListCheck`. Future versions may combine them into one class. A :class:`ListCheck`
 object is not much more than a :class:`SelectionCheck` object that can read more than
 one item.
+
+.. versionadded:: 0.7.0
+    The callback parameter

@@ -13,12 +13,19 @@ class SelectionCheck(XCheck):
     """SelectionCheck(name, **kwargs)
     SelectionCheck checks against a set number of string values
     :param values: required list of string objects
+    :param func callback: function to call to get values
     :param ignore_case: allows value to match upper or lower case
     :type ignore_case: bool (default True)
 
     """
     _boolCheck = BoolCheck('caseSensitive')
     def __init__(self, name, **kwargs):
+        if 'values' not in kwargs and 'callback' not in kwargs:
+            raise NoSelectionError("Selection check must have iterable values or a callback function")
+
+        self.callback = kwargs.pop('callback', None)
+        self.use_callback = True if self.callback is not None else False
+
         try:
             self.values = list(kwargs.pop('values', []))
         except:
@@ -30,9 +37,9 @@ class SelectionCheck(XCheck):
             normalize=True)
 
         XCheck.__init__(self, name, **kwargs)
-        self._object_atts.extend(['ignore_case', 'values'])
+        self._object_atts.extend(['ignore_case', 'values', 'use_callback'])
 
-        if not self.values:
+        if not self.use_callback and not self.values:
             raise NoSelectionError("must have values for selection test")
         for v in self.values:
             if not isinstance(v, basestring):
@@ -41,7 +48,11 @@ class SelectionCheck(XCheck):
     def check_content(self, item):
         ok = None
         item = str(item)
-        vals = list(self.values)
+        if self.callback:
+            vals = self.callback()
+        else:
+            vals = list(self.values)
+
         self.normalize_content(item)
         if self.ignore_case:
             item = item.lower()
@@ -85,6 +96,7 @@ class ListCheck(XCheck):
     def __init__(self, name, **kwargs):
         self.delimiter = kwargs.pop('delimiter', ',')
         self.values = kwargs.pop('values', [])
+        self.callback = kwargs.pop('callback', None)
         self.allow_duplicates = kwargs.pop('allow_duplicates', False)
         self.min_items = int(kwargs.pop('min_items', 0) )
         self.max_items = int(kwargs.pop('max_items', -1) )
@@ -128,7 +140,10 @@ class ListCheck(XCheck):
             vals = map(str.lower, self.values)
             items = map(str.lower, items)
         else:
-            vals = list(self.values)
+            if self.callback:
+                vals = self.callback()
+            else:
+                vals = list(self.values)
 
         if vals != []:
             for item in items:
@@ -212,6 +227,62 @@ class SelectionCheckTC(unittest.TestCase):
     def testFailWithOutOfListValue(self):
         "SelectionCheck() fails if value not in list of acceptable values"
         self.assertRaises(self.s.error, self.s, 'delta')
+
+class SelectionCallbackTC(unittest.TestCase):
+    delta_ok = False
+
+    def getValues(self):
+        if self.delta_ok:
+            return['alpha', 'beta', 'gamma', 'delta']
+        else:
+            return ['alpha', 'beta', 'gamma']
+
+    def setUp(self):
+
+        self.s = SelectionCheck('choice', callback=self.getValues)
+
+    def tearDown(self):
+        del self.s
+
+    def testPassWithCallback(self):
+        self.failUnless(self.s('alpha'))
+
+    def testFailWithCallback(self):
+        self.assertRaises(self.s.error, self.s, 'delta')
+
+    def testDynamic(self):
+        self.delta_ok = False
+        self.assertRaises(self.s.error, self.s, 'delta')
+        self.delta_ok = True
+        self.failUnless(self.s, 'delta')
+        self.delta_ok = False
+
+class ListCallbackTC(unittest.TestCase):
+    delta_ok = False
+
+    def getValues(self):
+        if self.delta_ok:
+            return ['alpha', 'beta', 'gamma', 'delta']
+        else:
+            return ['alpha', 'beta', 'gamma']
+
+    def setUp(self):
+        self.l = ListCheck('letter', callback=self.getValues)
+    def tearDown(self):
+        del self.l
+
+    def testPassWithCallback(self):
+        self.failUnless(self.l('alpha'))
+
+    def testFailWithCallback(self):
+        self.assertRaises(self.l.error, self.l, 'delta')
+
+    def testDynamic(self):
+        self.delta_ok = False
+        self.assertRaises(self.l.error, self.l, 'delta')
+        self.delta_ok = True
+        self.failUnless(self.l, 'delta')
+        self.delta_ok = False
 
 class ListCheckTC(unittest.TestCase):
     "random doc string"
