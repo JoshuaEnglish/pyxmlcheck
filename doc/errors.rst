@@ -10,7 +10,8 @@ The :mod:`xcheck` module defines the following execptions:
 
 .. exception:: XCheckError
 
-    This is the root error, subclassed from Exception, and is used as the generic error in all `xcheck` objects.
+    This is the root error, subclassed from Exception, and is used as the
+    generic error in all `xcheck` objects.
 
 .. exception:: MismatchedTagError
 

@@ -1,3 +1,12 @@
+"""utils
+Utility Fuctions for XCheck
+
+"""
+
+__history__="""
+2013-10-05 - Rev 29 - added simple_formatter and debug_formatter for logging
+"""
+
 try:
     from elementtree import ElementTree as ET
 except ImportError:
@@ -67,6 +76,10 @@ def list_requirements(checker, prefix=None):
                 res.append((att.name,))
 
     for child in checker.children:
+        if child.has_attributes:
+            _prefix = (prefix + checker.name) if prefix else (checker.name)
+            for att in child.attributes.values():
+                res.append(prefix + (att.name,))
         if child.has_children:
             _prefix = (prefix + checker.name) if prefix else (checker.name,)
             res.extend(list_requirements(child, _prefix))
@@ -78,3 +91,11 @@ def list_requirements(checker, prefix=None):
 
 
     return res
+
+#-------------------------------------------------------------------------------
+# logging help
+
+import logging
+simple_formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+_dstr = "%(name)s - %(levelname)s - %(message)s [%(module)s:%(lineno)d]"
+debug_formatter = logging.Formatter(_dstr)

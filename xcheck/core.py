@@ -1,3 +1,19 @@
+"""
+XCheck Core
+
+The main XCheck object, and custome exceptions.
+
+XCheck objects can check xml nodes or xml-text. XCheck objects are designed
+to process children nodes, as well, and thus ignore any text.
+
+XCheck is the parent class for all other XCheck objects.
+
+
+"""
+
+__history__ = """
+2013-10-05 - Rev 29 - Integrated logging correctly
+"""
 import logging
 import collections
 
@@ -33,6 +49,8 @@ class MissingChildError(XCheckError):
 class UnexpectedChildError(XCheckError):
     "A child was found that was not expected"
 
+INIT = 2
+logging.addLevelName(INIT, "INIT")
 
 
 class XCheck(object):
@@ -83,9 +101,14 @@ class XCheck(object):
             -- sorts children of a node
     """
     def __init__(self, name, **kwargs):
+
         self.name_ = name    # required (cannot be changed)
+        self.logger = logging.getLogger("%sCheck" % name)
+        self.logger.log(INIT, "Creating %sCheck", name)
         self.min_occurs = int(kwargs.pop('min_occurs',1))  # number of times the element
         self.max_occurs = int(kwargs.pop('max_occurs',1)) # can appear in the parent (if any)
+        self.logger.log(INIT, "Set min and max occur values %d and %d",
+                        self.min_occurs, self.max_occurs)
         self.children = []
 
         #XML attribute related
@@ -101,6 +124,7 @@ class XCheck(object):
         self.helpstr = kwargs.pop('help', '')
 
         # Safely populate the attributes
+        self.logger.log(INIT, "Creating attributes")
         for key, val in kwargs.pop('attributes', {}).items():
             if not isinstance(val, XCheck):
                 raise XMLAttributeError('Invalid attribute checker %s' % val)
@@ -109,6 +133,7 @@ class XCheck(object):
             self._addattribute(val)
 
         # Safely populate children
+        self.logger.log(INIT, "Creating Children...")
         for child in kwargs.pop('children', []):
             self._add_child(child)
         self.__dict__.update(**kwargs)
@@ -122,6 +147,7 @@ class XCheck(object):
         if self.__class__.__name__ == "XCheck":
             self._object_atts.extend(['check_children', 'ordered'])
 
+
     # DEV
     def is_att(self, tag):
         """returns true if the given tag is an attribute"""
@@ -131,10 +157,12 @@ class XCheck(object):
     # new 0.5.0
     def to_dict(self, node):
         """creates a dictionary representing the node"""
+        self.logger.debug("Converting to dictionary")
         return node_to_dict(node, self)
 
     def from_dict(self, dict_):
         """creates a node from a dictionary"""
+        self.logger.debug("Converting from dictionary")
         return dict_to_node(dict_, self)
 
     # new 0.4.8
@@ -282,6 +310,7 @@ class XCheck(object):
         if not isinstance(child, XCheck):
             raise self.error, "Cannot use %s as child checker" % child
         self.children.append(child)
+        self.logger.log(INIT, "Adding child %s", child.name)
 
     def add_child(self, *children):
         """add_child(*children) [also add_children]
@@ -305,6 +334,7 @@ class XCheck(object):
         if att.name in self.attributes:
             raise XMLAttributeError("Cannot replace known attribute")
         self.attributes[att.name] = att
+        self.logger.log(INIT,"Setting attribute %s", att.name)
 
     def addattribute(self, *atts):
         """addattribute(*atts) [also addattributes]
@@ -330,6 +360,7 @@ class XCheck(object):
         """
         #
 ##        raise XCheckError("Do not check simple content with XCheck")
+        self.logger.debug('checking content %s', item)
         self.normalize_content(item)
         return True
 
@@ -338,6 +369,7 @@ class XCheck(object):
         This is the method used to normalize the return value.
         normalization is optional
         """
+        self.logger.debug('setting normalized_value')
         self._normalized_value = item
 
 
@@ -351,6 +383,7 @@ class XCheck(object):
         """
         self.normalize_content(item)
         if as_string:
+            self.logger.debug('... converting normalized value to string')
             return str(self._normalized_value)
 
         return self._normalized_value
@@ -360,6 +393,9 @@ class XCheck(object):
                  normalize=False, verbose=False,
                  as_string = False):
         # Temporarily override the check_children attribute
+        self.logger.debug("checking %s", arg)
+        self.logger.debug("  normalize: %d", normalize)
+        self.logger.debug("  as_string: %d", as_string)
         _cc = None
         #self._normalizedResult = None
         if check_children is not None:
@@ -369,20 +405,22 @@ class XCheck(object):
         # Create an element if possible
         elem = None
         if ET.iselement(arg):
+            self.logger.debug("checking an Element")
             elem = arg
 
         if elem is None:
             try:
-                logging.info('converting')
+                self.logger.debug('converting to Element')
                 elem = ET.fromstring(arg)
                 arg = elem.text
-                logging.info("element: %s" % ET.fromstring(elem))
+                self.logger.debug("element: %s" % ET.fromstring(elem))
             except:
+                self.logger.debug("could not convert %s", elem)
                 pass
 
         # validate element if appropriate
         if elem is not None:
-            logging.debug(' validating element')
+            self.logger.debug(' validating element')
             ok = elem.tag == self.name
             if not ok:
                 text = "Element tag does not match check name"
@@ -392,16 +430,17 @@ class XCheck(object):
                 ok &= self.check_content(content.strip())
             #~ Check the attributes
             atts = dict(self.attributes) # create a copy to play with
-            logging.info('checking attributes: %s', atts)
+            self.logger.debug('checking attributes: %s', atts)
 
             for key, val in elem.items():
                 ch = atts.pop(key, None)
                 #! element has attribute that the checker doesn't know about
                 if ch is None:
-                    raise UnknownXMLAttributeError, key
+                    self.logger.error("Unknown Attrbute: %s", key)
+                    raise UnknownXMLAttributeError(key)
                 #~ check the attribute with the checker
-                if verbose:
-                    print "checking attribute {0} with val {1}".format(ch.name, val)
+                self.logger.debug('checking attribute %s with %s', ch.name, val)
+
 
                 # Work around the strangeness of DateTimeCheck (0.4.1)
                 if isinstance(ch, DatetimeCheck):
@@ -411,76 +450,74 @@ class XCheck(object):
 
             #~ check for leftover required attributes
             for att in atts.values():
-                if verbose:
-                    print "leftover attribute {0} (required:{1})".format(att.name, att.required)
+                self.logger.error('Leftover attribute %s', att.name)
                 if att.required:
+
                     text = "missing required attribute (%s)" % att.name
+                    self.logger.error(text)
                     raise UncheckedXMLAttributeError(text)
 
 
             if self.check_children:
                 if self.ordered:
-                    if verbose:
-                        print "checking children in order"
+                    self.logger.debug('Checking children in order')
                     if elem.tag == self.name:
-                        if verbose:
-                            print "checking {0} with {1}".format(elem.text, self.name)
+                        self.logger.debug('checking %s with %s', elem.text, self.name)
                         self.check_content(elem.text)
 
                         if self.has_children:
-                            if verbose:
-                                print "checking children of", self.name
+                            self.logger.debug('checking children of %s', self.name)
                             children = iter(self.children)
                             child = children.next()
-                            if verbose:
-                                print "setting child as", child.name
+                            self.logger.debug('setting childe as %s', child.name)
                             count = 0
                             for e in elem:
-                                if verbose:
-                                    print "current element", e.tag
+                                self.logger.debug('current element %s', e.tag)
                                 if child.name ==  e.tag:
-                                    if verbose:
-                                        print "{0} matches {1}".format(child.name, e.tag)
+                                    self.logger.debug('%s matches %s', child.name, e.tag)
                                     child(e, verbose = verbose)
                                     count += 1
                                 else:
-                                    if verbose:
-                                        print "{0} doesn't match {1}".format(child.name, e.tag)
+                                    self.logger.debug("%s doesn't match %s", child.name, e.tag)
+
                                     while child.name != e.tag:
-                                        if verbose:
-                                            print "counting number of {0} elements".format(e.tag)
+                                        self.logger.debug("counting number of %s elements", e.tag)
                                         if count < child.min_occurs :
+                                            self.logger.error("Not enough %s children (found %d)", child.name, count)
                                             raise MissingChildError(
                                                 "Not enough %s children (found %d)" % (child.name, count))
                                         if count > child.max_occurs:
+                                            self.logger.error('Too many %s children', child.name)
                                             raise UnexpectedChildError(
                                                 "Too many %s children" % child.name)
                                         try:
                                             child = children.next()
-                                            if verbose:
-                                                print "setting next child", child.name
+                                            self.logger.log(INIT, "setting next child", child.name)
                                             count = 0
                                         except StopIteration:
                                             text = "what is %s and what is it doing here?" % child.name
+                                            self.logger.error(text)
                                             raise UnexpectedChildError(text)
                                     child(e, verbose=verbose)
                                     count += 1
-                            if verbose:
-                                print "Checking count of", child.name, "elements"
+                            self.logger.debug('Checking count of %s elements', child.name)
+
                             if count < child.min_occurs:
                                 text ="Not enough %s children" % child.name
+                                self.logger.error(text)
                                 raise MissingChildError(text)
                             if count > child.max_occurs:
                                 text ="Too many %s children" % child.name
+                                self.logger.error(text)
                                 raise UnexpectedChildError(text)
 
                             # AFTER CHECKING ALL ELEMENTS
                             while True:
-                                if verbose:
-                                    print "looking for leftover required children"
+                                self.logger.debug('looking for leftover required children')
                                 try:
                                     child = children.next()
                                     if child.min_occurs > 0:
+                                        self.logger.error('Missing %s child', child.name)
                                         raise MissingChildError(
                                             "Missing %s child" % child.name)
                                 except StopIteration:
@@ -490,6 +527,7 @@ class XCheck(object):
                         # checker has no children
                         else:
                             if len(elem) > 0:
+                                self.logger.error("Found child where non expected")
                                 raise UnexpectedChildError(
                                     "Found child where none expected")
                     else:
@@ -681,15 +719,18 @@ class XCheck(object):
         if self.__class__ != XCheck:
             cls_name = self.__class__.__name__
             text = "cannot create dummy element for %s" % cls_name
+            self.logger.error(text)
             raise TypeError(text)
 
+        self.logger.debug('Creating dummy element')
         elem = ET.Element(self.name)
         for key in self.attributes:
             ch = self.attributes[key]
             if ch.required:
                 elem.set(key, ch.dummy_value() )
-        for child in self.children:
 
+        for child in self.children:
+            self.logger.debug("Creating %d %s children", child.min_occurs, child.name)
             for x in range(child.min_occurs):
                 if child.__class__.__name__== 'XCheck':
                     kid = child.dummy_element()
@@ -714,11 +755,17 @@ class XCheck(object):
         Subclasses should override this method.
 
         """
-        return None
+        raise NotImplementedError
 
 from dictwrap import *
 
 from datetimecheck import DatetimeCheck
 if __name__=='__main__':
+    oopslog = logging.getLogger('oopsCheck')
+    oopslog.addHandler(logging.StreamHandler())
+    formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s [%(module)s:%(lineno)d]")
+    oopslog.handlers[0].setFormatter(formatter)
+    oopslog.setLevel(INIT)
     X = XCheck('oops')
     print X
+    X('die')
