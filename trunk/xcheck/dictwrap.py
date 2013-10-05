@@ -1,6 +1,11 @@
 """dictwrap
 Two tools for turning an XML node into a dictionary and back.
 """
+__history__ = """
+2013-10-05 -- Rev 29 -- Incorporated Logging
+"""
+
+import logging
 from elementtree import ElementTree as ET
 
 from core import XCheck
@@ -9,6 +14,7 @@ from numbercheck import IntCheck
 from listcheck import ListCheck, SelectionCheck
 from textcheck import TextCheck, EmailCheck
 from datetimecheck import DatetimeCheck
+
 
 
 __all__ = ['node_to_dict', 'dict_to_node']
@@ -146,7 +152,8 @@ def local_test():
             </address>
     </dude>""")
     from pprint import pprint
-    pprint( node_to_dict(dude_node, dude) )
+    object_dict = node_to_dict(dude_node, dude)
+    pprint( object_dict )
 
 if __name__ == '__main__':
     local_test()

@@ -4,11 +4,10 @@ or an elementtree.ElementTree node. XCheck objects can also
 return checked data in a normalized form (BoolCheck, for example,
 returns Boolean values, IntCheck returns an integer)
 
-
 """
 __version__ = '0.7.0'
 
-
+__rev__ = 19
 
 from core import *
 from textcheck import TextCheck, EmailCheck, URLCheck

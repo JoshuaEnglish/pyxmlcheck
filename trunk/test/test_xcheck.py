@@ -1495,5 +1495,26 @@ class TestWrap3(unittest.TestCase):
 
         self.assertEqual(empty_example._get_elem_value('item'),'one')
 
+class TestListRequirements(unittest.TestCase):
+    def setUp(self):
+        contactCheck = XCheck('contact')
+        contactCheck.add_addtribute(TextCheck('class', required=True))
+        contactCheck.add_addtribute(TextCheck('order', required=False))
+        contactCheck.add_child(TextCheck('name'))
+        contactCheck.add_child(EmailCheck('email', min_occurs=0))
+
+        addyCheck = XCheck('address')
+        addyCheck.add_child(TextCheck('street'), TextCheck('city', min_occurs=0))
+        contactCheck.add_child(addyCheck)
+        contactCheck.add_child(IntCheck('city'))
+        self.ch = contactCheck
+
+
+    def test_list_requirement(self):
+        reqs = utils.list_requirements(self.ch)
+        self.assertListEqual(reqs,
+            [('class',), ('name',), ('contact', 'street'), ('city',)],
+            "list_requirements did not create proper list")
+
 if __name__=='__main__':
     unittest.main(verbosity=0)

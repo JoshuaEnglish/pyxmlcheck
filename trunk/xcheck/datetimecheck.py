@@ -25,11 +25,9 @@ class DatetimeCheck(XCheck):
     :param as_struct: normalizes the value to atime.struct_time object
     :param as_string: normalzes the value to a string
 
-    DateTimeCheck ignores custom use of _normalize. If any of as_datetime,
-        as_struct, or as_string are true, _normalize will be set to True.
+    DateTimeCheck ignores the basic use of normalize. If any of as_datetime,
+        as_struct, or as_string are true, normalize will be set to True.
 
-    By defaulet `as_string` is `True` and `as_datetime` and
-    `as_struct` are False in the call.
     """
 
     def __init__(self, name, **kwargs):

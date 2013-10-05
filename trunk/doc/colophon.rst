@@ -3,7 +3,7 @@ Colophon
 ========
 
 This site is generated using `Sphinx <http://http://sphinx-doc.org/>`_
-1.1.3, using the default theme with a
+1.2.b1, using the default theme with a
 custom color scheme generated at `Color Scheme Designer
 <http://colorschemedesigner.com/#3H41Ott..CkCk>`_.
 
