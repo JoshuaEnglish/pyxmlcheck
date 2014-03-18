@@ -3,6 +3,7 @@ Two tools for turning an XML node into a dictionary and back.
 """
 __history__ = """
 2013-10-05 -- Rev 29 -- Incorporated Logging
+2013-10-12 -- Rev 30 -- Fixed issue 7
 """
 
 import logging
@@ -29,7 +30,10 @@ def node_to_dict(node, checker):
         val = node.get(key)
 
         if val is not None:
-            val = attch(val, normalize=True) # cut as_string=True
+            kw = {'normalize': True}
+            if isinstance(attch, DatetimeCheck):
+                kw['as_string'] = True
+            val = attch(val, **kw) # cut as_string=True
             res["%s.%s" % (checker.name, key)] = val
 
     if checker.children:
@@ -52,7 +56,12 @@ def node_to_dict(node, checker):
                         res.update(node_to_dict(child_node, child_check))
     else:
         text = node.text
-        res[checker.name] = checker(text, normalize=True)
+        kw = {'normalize':True}
+        if isinstance(checker, DatetimeCheck):
+            kw['as_string'] = True
+
+        res[checker.name] = checker(text, **kw)
+
     return res
 
 AS_STRING_CLASSES = (BoolCheck, ListCheck, IntCheck, DatetimeCheck)
@@ -155,5 +164,25 @@ def local_test():
     object_dict = node_to_dict(dude_node, dude)
     pprint( object_dict )
 
+def issue7():
+    whenCheck = DatetimeCheck('when', format="%m/%d/%Y")
+    when = ET.fromstring('<when>10/12/2013</when>')
+    print whenCheck(when)
+    when_dict =  whenCheck.to_dict(when)
+    print when_dict
+    new_when = whenCheck.from_dict(when_dict)
+    ET.dump( new_when )
+    print whenCheck(new_when)
+
+    event = XCheck('event')
+    event.addattribute(whenCheck)
+
+    party = ET.fromstring('<event when="10/12/2013" />')
+    print "Checking Party:", event(party)
+    party_as_dict = event.to_dict(party)
+    print party_as_dict
+
+
 if __name__ == '__main__':
-    local_test()
+##    local_test()
+    issue7()

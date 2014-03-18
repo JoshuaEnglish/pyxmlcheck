@@ -13,6 +13,8 @@ XCheck is the parent class for all other XCheck objects.
 
 __history__ = """
 2013-10-05 - Rev 29 - Integrated logging correctly
+2013-10-12 - Rev 30 - Fixed issue 8. checker.get supports dotted names
+2014-02-01 -        - Fixed issue in XCheck.tokens
 """
 import logging
 import collections
@@ -49,9 +51,30 @@ class MissingChildError(XCheckError):
 class UnexpectedChildError(XCheckError):
     "A child was found that was not expected"
 
+class DuplicateTagError(XCheckError):
+    "A child tag was duplicated"
+
 INIT = 2
 logging.addLevelName(INIT, "INIT")
 
+# adapted from https://stackoverflow.com/questions/19071645/
+def PathBuilder(node, target):
+    # Base case. If we found the target, return target in a list
+    if node.name == target:
+        return [node.name]
+
+    if target in node.attributes:
+        return ["%s[@%s]" % (node.name, target)]
+    # If we're at a leaf and it isn't the target, return None
+    if not node.has_children:
+        return None
+
+    # recursively iterate over children
+    for i in node.children:
+        tail = PathBuilder(i, target)
+        if tail: # is not None
+            return [node.name] + tail # prepend node to path back from target
+    return None #none of the children contains target
 
 class XCheck(object):
     """XCheck
@@ -187,6 +210,7 @@ class XCheck(object):
         attributes.
         If children_only is true, no attributes are included.
         """
+
         res = [self.name]
         if not children_only:
             res.extend(self.attributes.keys() )
@@ -199,6 +223,10 @@ class XCheck(object):
         Shortcut method for XCheck.tokens(True)
         """
         return self.tokens(children_only = True)
+
+    @property
+    def child_names(self):
+        return [x.name for x in self.children]
 
     # new 0.4.2
     def _rename(self, newname):
@@ -237,12 +265,8 @@ class XCheck(object):
     def __repr__(self):
         return "<%sCheck object at 0x%x>" % (self.name, id(self))
 
-#todo: change get to allow for a . notation
-#so attribute checkers could have the same name
-    def get(self, name):
-        """get(name)
-        Returns an attribute or child checker object.
-        """
+
+    def _get(self, name):
         res = None
         if name in self.attributes:
             return self.attributes[name]
@@ -251,10 +275,24 @@ class XCheck(object):
                 return self
             else:
                 for child in self.children:
-                    res = child.get(name)
+                    res = child._get(name)
                     if res is not None:
                         break
         return res
+
+    def get(self, name):
+        """get(name)
+        Returns an attribute or child checker object.
+        Support dotted interface for attributes and children
+        """
+        items = name.split('.')
+        if len(items) == 1:
+            return self._get(items[0])
+        else:
+            ch = self._get(items.pop(0))
+            while items:
+                ch = self._get(items.pop(0))
+            return ch
 
     def dict_key(self, name):
         """dict_key(name)
@@ -271,7 +309,7 @@ class XCheck(object):
             return pth
 
     def path_to(self, name, level = 0):
-        """path_to(name, [level=0])
+        """path_to(name)
 
         Returns an XMLPath and attribute to the tag
         This is a pair, not an actual string. (use xpath_to for the string)
@@ -297,7 +335,7 @@ class XCheck(object):
 
         return res
 
-    def xpath_to(self, name):
+    def xpath_to_OLD(self, name):
         """Returns a formatted xpath string"""
         nm, at = self.path_to(name)
         if at is None:
@@ -305,10 +343,37 @@ class XCheck(object):
         else:
             return "%s[@%s]" % (nm, at)
 
+    def xpath_to(self, target):
+        res = []
+        current = self
+        for item in target.split('.'):
+            self.logger.debug("xpath_to search for %s", item)
+            path = PathBuilder(current, item)
+            self.logger.debug("xpath_to current path %s", path)
+            if path:
+                if '[' in path[0] and res:
+                    self.logger.debug('xpath_to popping last item %s', res.pop())
+##                    res.pop()
+
+                res.extend(path)
+                self.logger.debug('xpath_to extending path to %s', res)
+            current = current.get(item)
+        final_path = '/'.join(res)
+        final_path = final_path.replace(self.name, '.')
+        return final_path
+
+
     def _add_child(self, child):
         """adds a child checker to the expected children list"""
         if not isinstance(child, XCheck):
             raise self.error, "Cannot use %s as child checker" % child
+
+        if self.has_child(child.name):
+            raise DuplicateTagError, "Cannot add %s as child. Already exists" % child.name
+
+        if self.has_attribute(child.name):
+            raise DuplicateTagError("Cannot add %s as child. Exists as attribute" % child.name)
+
         self.children.append(child)
         self.logger.log(INIT, "Adding child %s", child.name)
 
@@ -333,6 +398,9 @@ class XCheck(object):
             raise XMLAttributeError("Cannot use %s as attribute checker" % att)
         if att.name in self.attributes:
             raise XMLAttributeError("Cannot replace known attribute")
+
+        if self.has_child(att.name):
+            raise DuplicateTagError("Child %s already exists" % att.name)
         self.attributes[att.name] = att
         self.logger.log(INIT,"Setting attribute %s", att.name)
 
@@ -350,8 +418,8 @@ class XCheck(object):
             self._addattribute(att)
 
     addattributes = addattribute
-    add_addtribute = addattribute
-    add_addtributes = addattribute
+    add_attribute = addattribute
+    add_attributes = addattribute
 
     def check_content(self, item):
         """check_content(item) -> Bool
@@ -757,15 +825,76 @@ class XCheck(object):
         """
         raise NotImplementedError
 
+
+    def new_get(self, target):
+        """get(target)
+        returns the Checker or None
+        Supports dotted targets. Returns None (or should it freak?)
+        """
+        current = self
+        items = target.split('.')
+        res = []
+        while items:
+            next_target = items.pop(0)
+            if next_target is current.attributes:
+                return current.attributes[next_target]
+            path = PathBuilder(current, next_target)
+            if path is None:
+                return None
+            res.append(path)
+            for child in current.children:
+                if child.name == next_target:
+                    current = child
+            current = current.get(next_target)
+        return current
+
+##    get = new_get
+
 from dictwrap import *
 
 from datetimecheck import DatetimeCheck
 if __name__=='__main__':
+    from  utils import debug_formatter
     oopslog = logging.getLogger('oopsCheck')
-    oopslog.addHandler(logging.StreamHandler())
-    formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s [%(module)s:%(lineno)d]")
-    oopslog.handlers[0].setFormatter(formatter)
+    streamer = logging.StreamHandler()
+    streamer.setFormatter(debug_formatter)
+    oopslog.addHandler(streamer)
+
     oopslog.setLevel(INIT)
-    X = XCheck('oops')
-    print X
-    X('die')
+
+
+    oops = XCheck('oops')
+    this = oops
+    checks = {}
+    for idx, ch in enumerate('abcdefg'):
+        n = XCheck(ch)
+        checks[ch] = n
+        this.add_child(n)
+        if idx % 2:
+            this = n
+
+    oopslog.setLevel(logging.ERROR)
+
+    cidcheck = XCheck('cid')
+
+    checks['c'].add_attribute(cidcheck)
+    oops.add_attribute(cidcheck)
+
+    for ch in 'abcdefg':
+        print ch, PathBuilder(oops, ch), oops.xpath_to(ch)
+
+    print PathBuilder(oops.get('b'), 'g')
+    assert oops.new_get('c') == checks['c']
+    assert oops.new_get('a.c') is None
+    assert oops.new_get('g') == checks['g']
+    assert oops.new_get('b.g') == checks['g']
+    print PathBuilder(oops, 'cid')
+    print PathBuilder(oops, 'c.cid')
+    print oops.xpath_to('cid')
+    oopslog.setLevel(logging.DEBUG)
+    print oops.xpath_to('c.cid')
+##    print oops.xpath_to('oops')
+
+
+
+

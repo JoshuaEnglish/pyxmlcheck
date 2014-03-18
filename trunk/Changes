@@ -9,6 +9,7 @@ New Features
 
 * Added callback feature in ListCheck and SelectionCheck
 * Added utils.list_requirements
+* Added cross-check rules
 
 Bug Fixes
 ^^^^^^^^^
@@ -18,6 +19,8 @@ Bug Fixes
 * Fixed bug in Wrap that tried to check non-existent elements
 * Fixed bug in :func:`load_checker` that assigned the wrong error
 * Fixed bug #6: passing a checker attribute as a string was not being coerced
+* Fixed bug in XCheck.tokens that was ignoring the children_only attribute
+  (This also makes XCheck.tagnames work.)	
 
 Other changes
 ^^^^^^^^^^^^^^

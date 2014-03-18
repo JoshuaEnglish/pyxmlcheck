@@ -11,6 +11,8 @@ except:
 import datetime
 import time
 
+import xcheck
+print xcheck
 from  xcheck import *
 
 
@@ -739,6 +741,113 @@ class ListCheckTC(unittest.TestCase):
         self.l.min_items = 2
         self.assertEqual(self.l.dummy_value(), "a,b")
 
+class SelectionCheckTC(unittest.TestCase):
+    def setUp(self):
+        self.s = SelectionCheck('choice', values=['alpha','beta','gamma'])
+
+    def tearDown(self):
+        del self.s
+
+    def testDefaultAttributes(self):
+        "SelectionCheck creates appropriate default attrubutes"
+        self.assertTrue(self.s.ignore_case, "ignore_case not True")
+
+    def testCustomAttributes(self):
+        "SelectionCheck customizes attributes"
+        s = SelectionCheck('choice', values=['a', 'b'], ignore_case = False)
+        self.assertFalse(s.ignore_case, "ignore_case not customized")
+
+    def testFailWithoutValues(self):
+        "SelectionCheck raises NoSelectionError if not given any values"
+        self.assertRaises(NoSelectionError, SelectionCheck, 'choices')
+
+    def testFailWithEmptyListForValues(self):
+        "SelectionCheck raises NoSelectionError if values is an empty list"
+        self.assertRaises(NoSelectionError, SelectionCheck, 'choices', values = [])
+
+    def testFailWithNonListForValues(self):
+        "SelectionCheck() raises BadSelectionsError if values is not iterable"
+        self.assertRaises(BadSelectionsError, SelectionCheck, 'choices', values=None)
+
+    def testFailWithNonCaseSensitiveChoice(self):
+        "SelectionCheck() fails if case doesn't match and ignore_case is False"
+        self.s.ignore_case = False
+        self.assertRaises(self.s.error, self.s, 'Alpha')
+
+    def testPassWithNonCaseSensitiveChoice(self):
+        "SelectionCheck() accepts value in list without case match and caseSensitive is False"
+        self.s.ignore_case = True
+        self.failUnless(self.s('Alpha'))
+
+    def testPassWithElementText(self):
+        "SelectionCheck() accepts appropriate xml-formmated text"
+        self.failUnless(self.s('<choice>alpha</choice>'))
+
+    def testPassWithElement(self):
+        "SelectionCheck() accepts appropriate element.text"
+        self.failUnless(self.s(ET.fromstring('<choice>alpha</choice>')))
+
+    def testFailWithOutOfListValue(self):
+        "SelectionCheck() fails if value not in list of acceptable values"
+        self.assertRaises(self.s.error, self.s, 'delta')
+
+class SelectionCallbackTC(unittest.TestCase):
+    delta_ok = False
+
+    def getValues(self):
+        if self.delta_ok:
+            return['alpha', 'beta', 'gamma', 'delta']
+        else:
+            return ['alpha', 'beta', 'gamma']
+
+    def setUp(self):
+
+        self.s = SelectionCheck('choice', callback=self.getValues)
+
+    def tearDown(self):
+        del self.s
+
+    def testPassWithCallback(self):
+        self.failUnless(self.s('alpha'))
+
+    def testFailWithCallback(self):
+        self.assertRaises(self.s.error, self.s, 'delta')
+
+    def testDynamic(self):
+        self.delta_ok = False
+        self.assertRaises(self.s.error, self.s, 'delta')
+        self.delta_ok = True
+        self.failUnless(self.s, 'delta')
+        self.delta_ok = False
+
+class ListCallbackTC(unittest.TestCase):
+    delta_ok = False
+
+    def getValues(self):
+        if self.delta_ok:
+            return ['alpha', 'beta', 'gamma', 'delta']
+        else:
+            return ['alpha', 'beta', 'gamma']
+
+    def setUp(self):
+        self.d = ListCheck('dynamic', callback=self.getValues)
+
+    def tearDown(self):
+        del self.d
+
+    def testPassWithCallback(self):
+        self.assertTrue(self.d('alpha'))
+
+    def testFailWithCallback(self):
+        self.assertRaises(self.d.error, self.d, 'delta')
+
+    def testDynamic(self):
+        self.delta_ok = False
+        self.assertRaises(self.d.error, self.d, 'delta')
+        self.delta_ok = True
+        self.assertTrue(self.d, 'delta')
+        self.delta_ok = False
+
 class DatetimeCheckTC(unittest.TestCase):
     def setUp(self):
         self.d = DatetimeCheck('date')
@@ -1097,7 +1206,7 @@ class XChildWrapTC(unittest.TestCase):
         del self.w
 
 
-    def test__get_child_Wrap(self):
+    def test_get_child_Wrap(self):
         "_get_child_Wrap returns a Wrap instance with the appropriate checker and node"
         w0 = self.w._get_child_wrap('address', 0)
         w1 = self.w._get_child_wrap('address', 1)
@@ -1105,6 +1214,15 @@ class XChildWrapTC(unittest.TestCase):
         self.assertEqual(w0._elem.tag, "address", "element tag is wrong")
         self.assertEqual(w0._get_elem_value('street'), '100 Main St', "sub element value misread")
         self.assertEqual(w1._get_elem_value('street'), '318 West Nowhere Ln')
+
+    def test_get_multiple_children(self):
+        self.assertIsInstance(self.w.address, list)
+##        print self.w.address
+##        print self.w.street
+
+    def test_getattr(self):
+        "getattr returns a wrap instance when necessary"
+        self.assertIsInstance(self.w.name, Wrap)
 
 class DummyValueTC(unittest.TestCase):
     def test_Datetimedummy(self):
@@ -1189,9 +1307,11 @@ class ToDictTC(unittest.TestCase):
 
     def test_selection(self):
         "Selection Check translates to a string value"
-        ch = SelectionCheck('item', values=['one', 'two', 'three'])
-        node = ET.fromstring('<item>one</item>')
-        self.assertDictEqual({'item': 'one'}, ch.to_dict(node))
+        values = ['one', 'two', 'three', 'xyzzy']
+        ch = SelectionCheck('item', values=values)
+        for v in values:
+            node = ET.fromstring('<item>{}</item>'.format(v))
+            self.assertDictEqual({'item': v}, ch.to_dict(node))
 
     def test_list(self):
         "ListCheck returs a list of strings"
@@ -1243,6 +1363,28 @@ class ToDictTC(unittest.TestCase):
         self.assertEqual(D['name']['code'][1]['code'], 42)
         self.assertEqual(D['name']['code'][1]['code.word'], 'answer')
 
+    def test_issue7(self):
+        whenCheck = DatetimeCheck('when', format="%m/%d/%Y")
+        when = ET.fromstring('<when>10/12/2013</when>')
+        self.assertTrue( whenCheck(when) )
+        when_dict =  whenCheck.to_dict(when)
+        self.assertDictEqual( when_dict, {'when': '10/12/2013'},
+            "check.to_dict did not fix issue 7")
+
+        new_when = whenCheck.from_dict(when_dict)
+
+        self.assertTrue( whenCheck(new_when) )
+
+        event = XCheck('event')
+        event.addattribute(whenCheck)
+
+        party = ET.fromstring('<event when="10/12/2013" />')
+        self.assertTrue(event(party), "Did not create a safe node")
+        party_as_dict = event.to_dict(party)
+        self.assertDictEqual( party_as_dict,
+                             {'event.when': '10/12/2013', 'event': None},
+                             "check.to_dict did not fix issue 7")
+
 class FromDictTC(unittest.TestCase):
     def test_text(self):
         ch = TextCheck('name')
@@ -1277,6 +1419,15 @@ class FromDictTC(unittest.TestCase):
         ch.add_children(TextCheck('first'), TextCheck('nick', min_occurs=0))
         self.assertTrue(ch(ch.from_dict({'first':'Josh'})))
         self.assertTrue(ch(ch.from_dict({'first':'Josh','nick':'asshat'})))
+
+    def test_multiple_children(self):
+        ch = XCheck('stuff')
+        ch.add_child(TextCheck('item', max_occurs=4))
+##        ET.dump(ch.dummy_element())
+##        print ch.to_dict(ch.dummy_element())
+
+##        self.assertTrue(ch(ch.from_dict({'item':['josh@home.net', 'josh@work.net']})))
+
 
 class LoaderTC(unittest.TestCase):
 
@@ -1498,8 +1649,8 @@ class TestWrap3(unittest.TestCase):
 class TestListRequirements(unittest.TestCase):
     def setUp(self):
         contactCheck = XCheck('contact')
-        contactCheck.add_addtribute(TextCheck('class', required=True))
-        contactCheck.add_addtribute(TextCheck('order', required=False))
+        contactCheck.add_attribute(TextCheck('class', required=True))
+        contactCheck.add_attribute(TextCheck('order', required=False))
         contactCheck.add_child(TextCheck('name'))
         contactCheck.add_child(EmailCheck('email', min_occurs=0))
 
@@ -1509,12 +1660,132 @@ class TestListRequirements(unittest.TestCase):
         contactCheck.add_child(IntCheck('city'))
         self.ch = contactCheck
 
+    def tearDown(self):
+        del self.ch
 
     def test_list_requirement(self):
         reqs = utils.list_requirements(self.ch)
         self.assertListEqual(reqs,
             [('class',), ('name',), ('contact', 'street'), ('city',)],
             "list_requirements did not create proper list")
+
+# tackle Issue 8
+class TestGetChecker(unittest.TestCase):
+    def setUp(self):
+        contactCheck = XCheck('contact')
+        contactCheck.add_attribute(TextCheck('class', required=True))
+        contactCheck.add_attribute(TextCheck('order', required=False))
+        contactCheck.add_child(TextCheck('name', min_length=1))
+        contactCheck.add_child(EmailCheck('email', min_occurs=0))
+
+        addyCheck = XCheck('address')
+        addyCheck.add_child(TextCheck('street'))
+        contactCheck.add_child(addyCheck)
+        addyCheck.addattribute(IntCheck('city'))
+        self.ch = contactCheck
+
+    def tearDown(self):
+        del self.ch
+
+    def test_get(self):
+        self.assertIsInstance(self.ch.get('class'), TextCheck)
+        self.assertIsInstance(self.ch.get('order'), TextCheck)
+        self.assertIsInstance(self.ch.get('name'), TextCheck)
+        self.assertIsInstance(self.ch.get('email'), EmailCheck)
+        self.assertIsInstance(self.ch.get('address'), XCheck)
+        self.assertIsInstance(self.ch.get('address.street'), TextCheck)
+        self.assertIsInstance(self.ch.get('address.city'), IntCheck)
+
+    def test_bad_get_calls(self):
+        self.assertIsNone(self.ch.get('class.city'))
+
+
+#Issue 9 was abandoned, but left these important facts
+class TestIssue9(unittest.TestCase):
+
+    def test_duplicate_child_name(self):
+        ch = XCheck('parent')
+        self.assertRaises(DuplicateTagError, ch.add_child, TextCheck('a'), TextCheck('a'))
+
+    def test_child_comes_first(self):
+        pCheck = XCheck('parent')
+        pCheck.add_child(TextCheck('child'), TextCheck('sibling'))
+
+        self.assertRaises(DuplicateTagError, pCheck.addattribute, IntCheck('sibling'))
+
+    def test_attribute_comes_first(self):
+        pCheck = XCheck('parent')
+        pCheck.add_attribute(TextCheck('child'))
+        self.assertRaises(DuplicateTagError, pCheck.add_child, TextCheck('child'))
+
+    def test_duplicate_attributes(self):
+        ch = XCheck('parent')
+        self.assertRaises(XMLAttributeError, ch.add_attribute, TextCheck('child'), IntCheck('child'))
+
+
+class TestInsertNode(unittest.TestCase):
+    def setUp(self):
+        contactCheck = XCheck('contact')
+        contactCheck.add_attribute(TextCheck('class', required=True))
+        contactCheck.add_attribute(TextCheck('order', required=False))
+        contactCheck.add_child(TextCheck('name', min_length=1))
+        contactCheck.add_child(EmailCheck('email', min_occurs=0))
+
+        addyCheck = XCheck('address')
+        addyCheck.add_child(TextCheck('street'))
+        contactCheck.add_child(addyCheck)
+        addyCheck.addattribute(IntCheck('city'))
+        self.ch = contactCheck
+
+    def tearDown(self):
+        del self.ch
+
+
+class TestXPathTo(unittest.TestCase):
+    def setUp(self):
+        self.ch = dude
+
+    def tearDown(self):
+        del self.ch
+
+    def test_tokens(self):
+        pairs = (('dude', '.'),
+                ('id', '.[@id]'),
+                ('name', './name'),
+                ('first', './name/first'),
+                ('nick', './name/first[@nick]'),
+                ('word', './name/code[@word]'),
+                )
+        for token, path in pairs:
+            self.assertEqual(self.ch.xpath_to(token), path)
+
+    def test_dotted_pairs(self):
+        pairs = (
+                ('dude.id', '.[@id]'),
+                ('name.first', './name/first'),
+                ('first.nick', './name/first[@nick]'),
+                ('name.first.nick', './name/first[@nick]'),
+                ('name.code', './name/word'),
+                )
+        for token, path in pairs:
+            self.assertEqual(self.ch.xpath_to(token), path)
+
+
+class TestNewGet(unittest.TestCase):
+    def test_newet(self):
+        oops = XCheck('oops')
+        this = oops
+        for idx, ch in enumerate('abcdefg'):
+            n = XCheck(ch)
+            this.add_child(n)
+            if idx % 2:
+                this = n
+
+        self.assertIsNone( oops.new_get('a.c') )
+
+
+        oops.add_attribute(TextCheck('name'))
+        self.assertIsInstance(oops.new_get('name'), TextCheck)
 
 if __name__=='__main__':
     unittest.main(verbosity=0)
