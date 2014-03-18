@@ -21,5 +21,7 @@ from loader import load_checker
 
 from infinity import INF, NINF
 
+import utils
+
 if __name__=='__main__':
     print dir()

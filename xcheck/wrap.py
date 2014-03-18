@@ -1,7 +1,15 @@
 from functools import partial
+from operator import attrgetter, methodcaller
 
 from core import ET
 from utils import get_elem
+
+class Descriptor(object):
+    def __init__(self, instance, name):
+        self._instance = instance
+        self._name = name
+    def __get__(self):
+        return self._instance._get_elem_value(self.name)
 
 class Wrap(object):
     """Wrap(checker, element)
@@ -13,10 +21,13 @@ class Wrap(object):
     :param element: Data to be wrapped
     :type element: ElementTree.Element, a string representation, or None
 
+    The instance has a custom __getattr__ method. The results could be a string,
+    a list of strings, a list of wrapped objects, or None.
+
+    If the element is a singleton with data, the text is returned.
+
     """
     def __init__(self, ch, elem=None):
-
-
         self._checker = ch
         if elem is None:
             elem = ch.dummy_element()
@@ -24,6 +35,19 @@ class Wrap(object):
             elem = get_elem(elem)
         self._elem = elem
         self._checker(self._elem)
+##        # experimental stuff
+##
+##        for child in self._checker.children:
+##            if child.max_occurs == 1:
+####                print "setting %s attribute" % child.name
+####                getter = partial(self._get_elem_value, child.name)
+####                setter = partial(self._set_elem_value, child.name)
+####                prop = property(getter, setter)
+##                if child.has_children:
+##                    pass
+##                else:
+##
+##                    setattr(self, child.name, Descriptor(self, child.name))
 
     def _get_att(self, att_name, normalize=True):
         """_get_att(name, [normalize=True]
@@ -54,19 +78,22 @@ class Wrap(object):
         if nth >= childcheck.max_occurs:
             raise IndexError("index %d too high by checker" % nth)
 
-        children = list(self._elem.findall('.//%s' % tag_name) )
+##        children = list(self._elem.findall('.//%s' % tag_name) )
+        # test with new xpath_to
+        xpth = self._checker.xpath_to(tag_name)
+        children = list(self._elem.findall(xpth))
         if len(children) == 0 and childcheck.min_occurs ==0:
             return ''
         if nth >= len(children):
             raise IndexError("index %d out of range of children" % nth)
 
-        elist = list(self._elem.findall('.//%s' % tag_name))
+##        elist = list(self._elem.findall('.//%s' % tag_name))
 
         # if nth isn't a valid integer this will raise a type error
         if normalize:
-            return childcheck(elist[nth].text, normalize=normalize)
+            return childcheck(children[nth].text, normalize=normalize)
         else:
-            return elist[nth].text
+            return children[nth].text
 
     def _set_elem_value(self, tag_name, value, nth = 0):
         """_set_elem_value(self, tag_name, value, nth = 0)
@@ -82,11 +109,12 @@ class Wrap(object):
         if nth >= childcheck.max_occurs:
             raise IndexError("index %d out of checker bounds" % nth)
 
-        children = list(self._elem.findall('.//%s' % tag_name) )
+        xpth = self._checker.xpath_to(tag_name)
+        children = list(self._elem.findall(xpth))
 
         if len(children) == 0 and childcheck.min_occurs==0:
             self._add_elem(tag_name, value)
-            children = list(self._elem.findall('.//%s' % tag_name) )
+            children = list(self._elem.findall(xpth) )
 
         if nth >= len(children):
             raise IndexError, "index %d out of range of children" % nth
@@ -113,8 +141,8 @@ class Wrap(object):
             raise IndexError("Index %d out of checker bounds" % nth)
 
         attcheck = self._checker.get(att)
-
-        elist = list(self._elem.findall('.//%s' % tag))
+        xpth = self._checker.xpath_to(tag)
+        elist = list(self._elem.findall(xpth))
         if elist == [] and tag == self._elem.tag:
             elem = self._elem
         else:
@@ -151,8 +179,8 @@ class Wrap(object):
         except:
             raise ValueError, "Invalid value for %s: '%s'" % (att, value)
 
-
-        elist = list(self._elem.findall('.//%s' % tag))
+        xpth = self._checker.xpath_to(tag)
+        elist = list(self._elem.findall(xpth))
         if elist == [] and tag == self._elem.tag:
             elem = self._elem
         else:
@@ -169,7 +197,8 @@ class Wrap(object):
             attrib = {}
         last_child = None
         count = 0
-        for child in self._elem.findall('.//%s' % tag_name):
+        xpth = self._checker.xpath_to(tag_name)
+        for child in self._elem.findall(xpth):
             count += 1
             last_child = child
         ch = self._checker.get(tag_name)
@@ -194,7 +223,8 @@ class Wrap(object):
 
         ch = self._checker.get(tag_name)
 
-        elist = list(self._elem.findall('.//%s' % tag_name))
+        xpth = self._checker.xpath_to(tag_name)
+        elist = list(self._elem.findall(xpth))
         elem = elist[nth]
 
 ##        return self.__class__(ch, elem)
@@ -204,20 +234,31 @@ class Wrap(object):
     def __getattr__(self, prop):
         if prop in self._checker.tokens():
             nm, att = self._checker.path_to(prop)
-            #~ print nm, att
+##            print nm, att
             xpth = self._checker.xpath_to(prop)
+##            print xpth
             node = self._elem.find(xpth)
             ch = self._checker.get(prop)
-            #~ print node, node.text
+##            print node, node.text
             if node is  None:
                 return None
             if att:
                 return node.get(prop)
             else:
                 if ch.max_occurs > 1:
-                    return [n.text for n in self._elem.findall(xpth)]
+                    items = self._elem.findall(xpth)
+                    if ch.has_children:
+                        items = list(items)
+                        count = len(items)
+                        return [self._get_child_wrap(prop, i) for i in range(count)]
+                    else:
+                        return [n.text for n in items]
                 else:
-                    return node.text
+                    if ch.has_children:
+                        return self._get_child_wrap(prop)
+                    else:
+                        res = node.text
+                        return node.text
             return None
 
         else:
@@ -229,7 +270,7 @@ class Wrap(object):
         return self._checker.tokens()
 
 
-
+## --- ALL TESTING STUFF TO BE MOVED TO TEST SUITE
 import unittest
 from core import XCheck, XCheckError
 from boolcheck import BoolCheck
@@ -268,6 +309,13 @@ class XWrapTC(unittest.TestCase):
         self.assertEqual(self.w.first, "Josh")
         self.assertEqual(self.w.last, "English", "Last Name didn't match")
         self.assertEqual(self.w.code, ['12','42'], "Code didn't return a list")
+        self.assertEqual(self.w.nick, "true", "Child attribute didn't match")
+        self.assertEqual(self.w.word, "answer")
+
+    def do_not_test_new_dict_items(self):
+        dir_w = dir(self.w)
+        self.assertIn('first',dir_w)
+        self.assertIn('last',dir_w)
 
     def test_bad_init(self):
         "Wrap should fail on initiation if element doesn't validate by checker"
@@ -469,6 +517,10 @@ class XChildWrapTC(unittest.TestCase):
             '100 Main St', "sub element value misread")
         self.assertEqual(w1._get_elem_value('street'), '318 West Nowhere Ln')
 
+    def test_getattr(self):
+        "getattr returns a wrap instance when necessary"
+        self.assertIsInstance(self.w.name, Wrap)
+
 class TestWrap3(unittest.TestCase):
     def test_wrap_string(self):
         s = "<dude><first>Josh</first><last>English</last></dude>"
@@ -503,6 +555,23 @@ class TestWrap3(unittest.TestCase):
 
 if __name__=='__main__':
     unittest.main(verbosity=1)
+##    s = "<dude><first>Josh</first><last>English</last></dude>"
+##    dudecheck = load_checker(
+##        """<xcheck name='dude'>
+##        <children>
+##        <text name='first'/>
+##        <text name='last'/>
+##        </children>
+##        </xcheck>
+##        """)
+##    dudecheck(s)
+##    dude = Wrap(dudecheck, s)
+##
+##    print dude
+##    print dude._get_elem_value('first')
+##    print dude.first
+##    print 'first' in dir(dude)
+
 
 
 
