@@ -15,6 +15,7 @@ __history__ = """
 2013-10-05 - Rev 29 - Integrated logging correctly
 2013-10-12 - Rev 30 - Fixed issue 8. checker.get supports dotted names
 2014-02-01 -        - Fixed issue in XCheck.tokens
+2014-03-17 - Rev 31 - Added XCheck.get_all_items, updated xpath_to, get
 """
 import logging
 import collections
@@ -170,6 +171,8 @@ class XCheck(object):
         if self.__class__.__name__ == "XCheck":
             self._object_atts.extend(['check_children', 'ordered'])
 
+        # March 2014 path solutions
+        self._all_paths = None
 
     # DEV
     def is_att(self, tag):
@@ -280,7 +283,7 @@ class XCheck(object):
                         break
         return res
 
-    def get(self, name):
+    def _get_(self, name):
         """get(name)
         Returns an attribute or child checker object.
         Support dotted interface for attributes and children
@@ -293,6 +296,47 @@ class XCheck(object):
             while items:
                 ch = self._get(items.pop(0))
             return ch
+
+    def get(self, name):
+        """get(name)
+        Returns a checker object
+        Supports dotted interface for attributes and children
+        """
+        if name == self.name:
+            return self
+        if name in self.attributes:
+            return self.attributes[name]
+
+        self.logger.debug('Getting %s', name)
+        xpath = self.xpath_to(name)
+        self.logger.debug(' xpath: %s', xpath)
+        if xpath is None:
+            self.logger.debug(' no xpath - returning None')
+            return None
+        paths = self.get_all_paths()
+        def is_in(path):
+            return path.endswith(name)
+        possibilities = filter(is_in, paths)
+        self.logger.debug(' found %d possibilites', len(possibilities))
+##        print "getting", name, "from", self
+        if len(possibilities) == 1:
+            self.logger.debug(' which is %s', possibilities[0])
+            tokens = possibilities[0].split('.')[1:]
+            this = self
+            while tokens:
+                child_to_find = tokens.pop(0)
+                self.logger.debug(' looking for %s', child_to_find)
+                if child_to_find in this.attributes:
+                    return this.attributes[child_to_find]
+                for child in this.children:
+                    if child.name == child_to_find:
+                        this = child
+            self.logger.debug(' Should be 2 values: %s', tokens)
+            self.logger.debug(' last checker found: %s', this)
+            return this
+
+        else:
+            return None
 
     def dict_key(self, name):
         """dict_key(name)
@@ -343,7 +387,7 @@ class XCheck(object):
         else:
             return "%s[@%s]" % (nm, at)
 
-    def xpath_to(self, target):
+    def xpath_to_subbed(self, target):
         res = []
         current = self
         for item in target.split('.'):
@@ -352,8 +396,8 @@ class XCheck(object):
             self.logger.debug("xpath_to current path %s", path)
             if path:
                 if '[' in path[0] and res:
-                    self.logger.debug('xpath_to popping last item %s', res.pop())
-##                    res.pop()
+                    goner = res.pop()
+                    self.logger.debug('xpath_to popping last item %s', goner)
 
                 res.extend(path)
                 self.logger.debug('xpath_to extending path to %s', res)
@@ -362,6 +406,22 @@ class XCheck(object):
         final_path = final_path.replace(self.name, '.')
         return final_path
 
+    # attempted on 3-18-2014
+    def xpath_to(self, tag):
+        paths = self.get_all_paths()
+        def is_in(path):
+            return path.endswith(tag)
+        possibilities = filter(is_in, paths)
+    ##    print possibilities
+        if len(possibilities) == 1:
+            tokens = possibilities[0].split('.')
+            if self.is_att(tokens[-1]):
+                res = '/'.join(tokens[:-1]) + "[@%s]" % tokens[-1]
+            else:
+                res = '/'.join(tokens)
+
+            res = res.replace(self.name, '.')
+            return res
 
     def _add_child(self, child):
         """adds a child checker to the expected children list"""
@@ -848,6 +908,38 @@ class XCheck(object):
             current = current.get(next_target)
         return current
 
+    # cribbed from https://stackoverflow.com/questions/5671486
+    def get_all_paths(self, force=False):
+        if not force and self._all_paths:
+            return self._all_paths
+
+        def _get_all_paths(self):
+        ##    print "finding", self
+            root = self.name
+            rooted_paths = [[root],]
+            unrooted_paths = []
+            for att in self.attributes:
+                rooted_paths.append(["%s.%s" % (root,att)])
+            for child in self.children:
+                (usable, unusable) = _get_all_paths(child)
+                for path in usable:
+        ##            unrooted_paths.append(path)
+                    rooted_paths.append([root] + path)
+                for path in unusable:
+                    unrooted_paths.append(path)
+        ##    print "rooted", rooted_paths
+        ##    print "unrooted", unrooted_paths
+            return (rooted_paths, unrooted_paths)
+
+        res = []
+        for path in _get_all_paths(self):
+            for p in path:
+                joined = '.'.join(p)
+    ##            joined = joined.replace(self.name, '')
+    ##            if not joined: joined = '.'
+                res.append(joined)
+        self._all_paths = res
+        return res
 ##    get = new_get
 
 from dictwrap import *
@@ -860,7 +952,7 @@ if __name__=='__main__':
     streamer.setFormatter(debug_formatter)
     oopslog.addHandler(streamer)
 
-    oopslog.setLevel(INIT)
+    oopslog.setLevel(logging.DEBUG)
 
 
     oops = XCheck('oops')
@@ -878,23 +970,22 @@ if __name__=='__main__':
     cidcheck = XCheck('cid')
 
     checks['c'].add_attribute(cidcheck)
-    oops.add_attribute(cidcheck)
 
-    for ch in 'abcdefg':
-        print ch, PathBuilder(oops, ch), oops.xpath_to(ch)
+    copycheck = XCheck('cid')
+    oops.add_attribute(copycheck)
+    print "oops.cid:", copycheck, "or c.cid:", cidcheck
 
-    print PathBuilder(oops.get('b'), 'g')
-    assert oops.new_get('c') == checks['c']
-    assert oops.new_get('a.c') is None
-    assert oops.new_get('g') == checks['g']
-    assert oops.new_get('b.g') == checks['g']
-    print PathBuilder(oops, 'cid')
-    print PathBuilder(oops, 'c.cid')
-    print oops.xpath_to('cid')
-    oopslog.setLevel(logging.DEBUG)
-    print oops.xpath_to('c.cid')
-##    print oops.xpath_to('oops')
+##    for ch in 'abcdefg':
+##        print ch, PathBuilder(oops, ch), oops.xpath_to(ch)
 
+    print "All Paths"
+    for path in oops.get_all_paths():
+        print path, oops.get(path)
+    print "both none:", oops.xpath_to('b.g'), oops.get('b.g')
 
+    print oops.get('oops.b.c.cid') == cidcheck
+##    oopslog.setLevel(logging.DEBUG)
+    print oops.get('c.cid') == cidcheck
+    print oops.get('f.g')
 
 
