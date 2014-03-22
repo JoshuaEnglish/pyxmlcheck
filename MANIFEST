@@ -7,7 +7,9 @@ test\test_xcheck.py
 xcheck\__init__.py
 xcheck\boolcheck.py
 xcheck\core.py
+xcheck\crosscheck.py
 xcheck\datetimecheck.py
+xcheck\dev_listcheck.py
 xcheck\dictwrap.py
 xcheck\infinity.py
 xcheck\listcheck.py

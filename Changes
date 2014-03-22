@@ -1,7 +1,16 @@
 Changes in XMLCheck
 ===================
 
-Release 0.7.0 -
+Release 0.7.1 - 
+------------------------------
+
+Bug Fixes
+^^^^^^^^^
+
+* Fixed bug #10 - SelectionCheck now validates None if ``allow_none`` or ``required` is true
+
+
+Release 0.7.0 - March 18, 2014
 ------------------------------
 
 New Features
@@ -20,7 +29,9 @@ Bug Fixes
 * Fixed bug in :func:`load_checker` that assigned the wrong error
 * Fixed bug #6: passing a checker attribute as a string was not being coerced
 * Fixed bug in XCheck.tokens that was ignoring the children_only attribute
-  (This also makes XCheck.tagnames work.)	
+  (This also makes XCheck.tagnames work.)
+
+* Fixed bugs in XCheck.xpath_to and XCheck.get
 
 Other changes
 ^^^^^^^^^^^^^^
