@@ -1525,6 +1525,11 @@ class LoaderTC(unittest.TestCase):
         self.assertRaises(NoSelectionError,load_checker,'<selection name="fail" />')
         self.assertRaises(NoSelectionError,load_checker,'<selection name="fail" values="" />')
 
+    # as a result of Issue #10
+    def test_selection_allow_none(self):
+        ch = load_checker('<selection name="test" values="1,2,4" allow_none="true" />')
+        self.assertTrue(ch.allow_none)
+
     def test_int(self):
         ch = load_checker('<int name="value" />')
         self.assertEqual(ch.min, NINF)
@@ -1765,7 +1770,7 @@ class TestXPathTo(unittest.TestCase):
                 ('name.first', './name/first'),
                 ('first.nick', './name/first[@nick]'),
                 ('name.first.nick', './name/first[@nick]'),
-                ('name.code', './name/word'),
+                ('name.code', './name/code'),
                 )
         for token, path in pairs:
             self.assertEqual(self.ch.xpath_to(token), path)
@@ -1781,11 +1786,37 @@ class TestNewGet(unittest.TestCase):
             if idx % 2:
                 this = n
 
-        self.assertIsNone( oops.new_get('a.c') )
+        self.assertIsNone( oops.get('a.c') )
 
 
         oops.add_attribute(TextCheck('name'))
-        self.assertIsInstance(oops.new_get('name'), TextCheck)
+        self.assertIsInstance(oops.get('name'), TextCheck)
+
+
+class Issue10Test(unittest.TestCase):
+    def setUp(self):
+        self.ch = XCheck('test')
+        self.ch.addattribute(SelectionCheck('value', values=['a', 'b'], required=False))
+
+    def tearDown(self):
+        del self.ch
+
+    def testGoodValues(self):
+        self.assertTrue(self.ch('<test value="a" />'))
+        self.assertTrue(self.ch('<test value="b" />'))
+
+    def testBadValues(self):
+        self.assertRaises(self.ch.error, self.ch, "<test value='c' />")
+
+    def testMissing(self):
+        self.assertTrue(self.ch('<test />'))
+
+    def testPassingNone(self):
+        v = self.ch.get('value')
+        self.assertTrue(v(None))
+
+
+
 
 if __name__=='__main__':
     unittest.main(verbosity=0)

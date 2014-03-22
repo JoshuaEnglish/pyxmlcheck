@@ -26,6 +26,11 @@ class SelectionCheck(XCheck):
         self.callback = kwargs.pop('callback', None)
         self.use_callback = True if self.callback is not None else False
 
+        self.allow_none = kwargs.pop('allow_none', False)
+        self.required = kwargs.get('required', True)
+        if not self.required:
+            self.allow_none = True
+
         try:
             self.values = list(kwargs.pop('values', []))
         except:
@@ -37,7 +42,8 @@ class SelectionCheck(XCheck):
             normalize=True)
 
         XCheck.__init__(self, name, **kwargs)
-        self._object_atts.extend(['ignore_case', 'values', 'use_callback'])
+        self._object_atts.extend(['ignore_case', 'values',
+            'use_callback', 'allow_none'])
 
         if not self.use_callback and not self.values:
             raise NoSelectionError("must have values for selection test")
@@ -45,13 +51,26 @@ class SelectionCheck(XCheck):
             if not isinstance(v, basestring):
                 raise BadSelectionsError("value %s is not string type" % v)
 
+    def __call__(self, item, **kwargs):
+        self.logger.debug('__call__ %s with %s ', self.name, item)
+        self.logger.debug(' allow_none is %s', self.allow_none)
+        if item is None and self.allow_none:
+            return True
+
+        return XCheck.__call__(self, item, **kwargs)
+
     def check_content(self, item):
         ok = None
+        self.logger.debug('%s: item is %s', self.name, item)
+        if item is None and self.allow_none:
+            return True
+
         item = str(item)
         if self.callback:
             vals = self.callback()
         else:
             vals = list(self.values)
+
 
         self.normalize_content(item)
         if self.ignore_case:
@@ -373,8 +392,39 @@ class ListCheckTC(unittest.TestCase):
         self.l.min_items = 2
         self.assertEqual(self.l.dummy_value(), "a,b")
 
+
+class Issue10Test(unittest.TestCase):
+    def setUp(self):
+        self.ch = XCheck('test')
+        self.ch.addattribute(SelectionCheck('value', values=['a', 'b'], required=False))
+
+    def tearDown(self):
+        del self.ch
+
+    def testGoodValues(self):
+        self.assertTrue(self.ch('<test value="a" />'))
+        self.assertTrue(self.ch('<test value="b" />'))
+
+    def testBadValues(self):
+        self.assertRaises(self.ch.error, self.ch, "<test value='c' />")
+
+    def testMissing(self):
+        self.assertTrue(self.ch('<test />'))
+
+    def testPassingNone(self):
+
+        v = self.ch.get('value')
+        v.logger.setLevel(logging.DEBUG)
+        self.assertTrue(v(None))
+        v.logger.setLevel(logging.CRITICAL)
+
 if __name__=='__main__':
-##    logger = logging.getLogger()
-##    logger.setLevel(logging.CRITICAL)
+    import logging
+    logger = logging.getLogger()
+    hndl = logging.StreamHandler()
+    fmtr = logging.Formatter("%(name)s - %(levelname)s - %(message)s [%(module)s:%(lineno)s]")
+    hndl.setFormatter(fmtr)
+    logger.addHandler(hndl)
+##    logger.setLevel(logging.DEBUG)
 
     unittest.main(verbosity=1)
