@@ -9,14 +9,34 @@ class NoSelectionError(XCheckError):
 class BadSelectionsError(XCheckError):
     """SelectionCheck was passed non-iterable as whitelist"""
 
+
+    """IntCheck(name[, min, max])
+
+    IntCheck checks attributes and elements containing integer data.
+
+    :param name: name of the xml tag
+    :type name: string
+    :param min: minimum value for the checker
+    :type min: integer or NINF
+    :param max: maximum value for the checker
+    :type max: integer or INF
+
+    The max and min attributes are inclusive, they default to NINF and INF,
+    respectively.
+    """
+
 class SelectionCheck(XCheck):
     """SelectionCheck(name, **kwargs)
-    SelectionCheck checks against a set number of string values
-    :param values: required list of string objects
-    :param func callback: function to call to get values
-    :param ignore_case: allows value to match upper or lower case
-    :type ignore_case: bool (default True)
 
+    SelectionCheck checks against a set number of string values
+
+    :param iterable values: list of string objects
+    :param func callback: function to call to get values
+    :param bool ignore_case: allows value to match upper or lower case
+    :param bool allow_none: allows no selection value
+
+    If a callback is specified, it will always be used over a static values
+    list.
     """
     _boolCheck = BoolCheck('caseSensitive')
     def __init__(self, name, **kwargs):
@@ -32,11 +52,11 @@ class SelectionCheck(XCheck):
             self.allow_none = True
 
         try:
-            self.values = list(kwargs.pop('values', []))
+            self._values = list(kwargs.pop('values', []))
         except:
             raise BadSelectionsError("Selection must be iterable")
 
-        self.values = [val for val in self.values if val]
+        self._values = [val for val in self._values if val]
 
         self.ignore_case = self._boolCheck(kwargs.pop('ignore_case', True),
             normalize=True)
@@ -47,9 +67,23 @@ class SelectionCheck(XCheck):
 
         if not self.use_callback and not self.values:
             raise NoSelectionError("must have values for selection test")
-        for v in self.values:
+
+        for v in self._values:
             if not isinstance(v, basestring):
                 raise BadSelectionsError("value %s is not string type" % v)
+
+    @property
+    def values(self):
+        if self.callback:
+            return self.callback()
+        else:
+            return self._values
+
+    @values.setter
+    def values(self, value_list):
+        self.logger.debug('setting values list for SelectionCheck')
+        self._values = list(value_list)
+
 
     def __call__(self, item, **kwargs):
         self.logger.debug('__call__ %s with %s ', self.name, item)
@@ -96,12 +130,14 @@ class ListCheck(XCheck):
     """ListCheck(name, **kwargs)
     List Check accepts a string that is formatted as a list
 
-    delimiter [default ','] -- The separator between items
-    values [default []] -- The acceptable values for each item
-        if values exists, each item in the list will be checked that it
-        exists in the list, otherwise, anything can be a member of the list
-    allow_duplicates [default False] -- if True, items can appear more than once
-        in the list. If false, items can only appear once
+    :param str delimiter: The separator between items
+    :param list values: A list of acceptable values. If None or an empty list,
+                        any value is acceptable
+    :param func callback: A function that can be called dynamically to get
+                          acceptable members of the list.
+    :param bool allow_duplicates: If True, items can appear more than once
+                                  in the list. If false, items can only appear
+                                  once
     min_items [default 0] -- the minimum number of items allowed in the list
     max_items [default INF] -- the maximum number if items allowed in the list
     ignore_case [default False] -- if True, check is not case-sensitive
@@ -113,9 +149,15 @@ class ListCheck(XCheck):
     """
     _boolCheck = BoolCheck('ignore_case')
     def __init__(self, name, **kwargs):
+
         self.delimiter = kwargs.pop('delimiter', ',')
-        self.values = kwargs.pop('values', [])
+        try:
+            self._values = list(kwargs.pop('values', []))
+        except:
+            raise BadSelectionsError('List values must be iterable')
+
         self.callback = kwargs.pop('callback', None)
+
         self.allow_duplicates = kwargs.pop('allow_duplicates', False)
         self.min_items = int(kwargs.pop('min_items', 0) )
         self.max_items = int(kwargs.pop('max_items', -1) )
@@ -129,6 +171,18 @@ class ListCheck(XCheck):
         XCheck.__init__(self, name, **kwargs)
         self._object_atts.extend(['delimiter', 'values', 'allow_duplicates',
             'min_items', 'max_items', 'ignore_case'])
+
+    @property
+    def values(self):
+        if self.callback:
+            return self.callback()
+        else:
+            return self._values
+
+    @values.setter
+    def values(self, values_list):
+        self.logger.debug('changing ListCheck values')
+        self._values = list(values_list)
 
     def normalize_content(self, items):
         "normalizes the content of the list"
@@ -309,6 +363,7 @@ class ListCheckTC(unittest.TestCase):
         self.l = ListCheck('letter', values=['alpha','gamma','delta'])
 
     def tearDown(self):
+        self.l.logger.setLevel(logging.WARNING)
         del self.l
 
     def testSingleValidString(self):
@@ -414,9 +469,9 @@ class Issue10Test(unittest.TestCase):
     def testPassingNone(self):
 
         v = self.ch.get('value')
-        v.logger.setLevel(logging.DEBUG)
+##        v.logger.setLevel(logging.DEBUG)
         self.assertTrue(v(None))
-        v.logger.setLevel(logging.CRITICAL)
+##        v.logger.setLevel(logging.CRITICAL)
 
 if __name__=='__main__':
     import logging

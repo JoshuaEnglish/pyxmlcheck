@@ -1,13 +1,25 @@
 Changes in XMLCheck
 ===================
 
-Release 0.7.1 - 
+Releas 0.7.x --
 ------------------------------
 
 Bug Fixes
 ^^^^^^^^^
 
-* Fixed bug #10 - SelectionCheck now validates None if ``allow_none`` or ``required` is true
+* Fixed bug #12 -- Selection Check didn't return proper values when a callback
+  is used. Applied same fix to ListCheck. (Rev. 33)
+
+
+Release 0.7.1 - March 22, 2014
+------------------------------
+
+Bug Fixes
+^^^^^^^^^
+
+* Fixed bug #10 - SelectionCheck now validates None if `allow_none` or ``required` is true
+* Completely rewrote XCheck.xpath_to and XCheck.get methods
+* Completely rewrote XCheck.insert_node method
 
 
 Release 0.7.0 - March 18, 2014
