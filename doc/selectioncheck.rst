@@ -1,6 +1,9 @@
 Selection Validators
 ====================
 
+.. py:currentmodule:: xcheck
+
+
 SelectionCheck --- Enumerated values
 -------------------------------------
 
@@ -17,22 +20,10 @@ SelectionCheck --- Enumerated values
     *BadSelectionsError* is raised if the values are not `string` or
     `unicode` objects.
 
-.. class:: SelectionCheck( *args, values[, ignoreCase, allow_none])
 
-    .. attribute:: values
+.. autoclass:: SelectionCheck
 
-        *values* must be a list of strings.
 
-    .. attribute:: ignoreCase
-
-        If **True**, will validate despite the case of the item being
-        validated.
-
-    .. attribute:: allow_none
-	
-        If **True**, will allow the selection check to accept `None`
-
-        If used as an attribute with `required=False`, then `allow_none` will be **True**
 
 Examples
 ^^^^^^^^^

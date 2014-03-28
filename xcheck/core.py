@@ -58,25 +58,8 @@ class DuplicateTagError(XCheckError):
 INIT = 2
 logging.addLevelName(INIT, "INIT")
 
-# adapted from https://stackoverflow.com/questions/19071645/
-def PathBuilder(node, target):
-    # Base case. If we found the target, return target in a list
-    if node.name == target:
-        return [node.name]
 
-    if target in node.attributes:
-        return ["%s[@%s]" % (node.name, target)]
-    # If we're at a leaf and it isn't the target, return None
-    if not node.has_children:
-        return None
-
-    # recursively iterate over children
-    for i in node.children:
-        tail = PathBuilder(i, target)
-        if tail: # is not None
-            return [node.name] + tail # prepend node to path back from target
-    return None #none of the children contains target
-
+from utils import insert_node
 class XCheck(object):
     """XCheck
     Generic validator tool for XML nodes and XML formatted text.
@@ -142,7 +125,7 @@ class XCheck(object):
 
         #Miscellaneous attributes
         self.error = XCheckError
-##        if self.__class__._name___=="XCheck":
+
         self.check_children = True
         self.ordered = True
         self.helpstr = kwargs.pop('help', '')
@@ -173,10 +156,16 @@ class XCheck(object):
 
         # March 2014 path solutions
         self._all_paths = None
+        self._normalized_value = None
 
     # DEV
     def is_att(self, tag):
         """returns true if the given tag is an attribute"""
+        # Issue 11 fix
+        return ('@' in self.xpath_to(tag))
+        # end issue 11 fix
+
+    def _is_att(self, tag):
         return tag in self.tokens() and tag not in self.tagnames()
 
     #0.6.5 cut to_dict and from_dict to avoid recursive imports
@@ -269,34 +258,6 @@ class XCheck(object):
         return "<%sCheck object at 0x%x>" % (self.name, id(self))
 
 
-    def _get(self, name):
-        res = None
-        if name in self.attributes:
-            return self.attributes[name]
-        else:
-            if name == self.name:
-                return self
-            else:
-                for child in self.children:
-                    res = child._get(name)
-                    if res is not None:
-                        break
-        return res
-
-    def _get_(self, name):
-        """get(name)
-        Returns an attribute or child checker object.
-        Support dotted interface for attributes and children
-        """
-        items = name.split('.')
-        if len(items) == 1:
-            return self._get(items[0])
-        else:
-            ch = self._get(items.pop(0))
-            while items:
-                ch = self._get(items.pop(0))
-            return ch
-
     def get(self, name):
         """get(name)
         Returns a checker object
@@ -319,6 +280,9 @@ class XCheck(object):
         possibilities = filter(is_in, paths)
         self.logger.debug(' found %d possibilites', len(possibilities))
 ##        print "getting", name, "from", self
+        if len(possibilities) > 1:
+            possibilities = filter(lambda x: x.endswith('.%s' % name), possibilities)
+
         if len(possibilities) == 1:
             self.logger.debug(' which is %s', possibilities[0])
             tokens = possibilities[0].split('.')[1:]
@@ -331,8 +295,8 @@ class XCheck(object):
                 for child in this.children:
                     if child.name == child_to_find:
                         this = child
-            self.logger.debug(' Should be 2 values: %s', tokens)
-            self.logger.debug(' last checker found: %s', this)
+##            self.logger.debug(' Should be 2 values: %s', tokens)
+##            self.logger.debug(' last checker found: %s', this)
             return this
 
         else:
@@ -376,46 +340,27 @@ class XCheck(object):
                         res = (a, b)
                         break
 
-
         return res
 
-    def xpath_to_OLD(self, name):
-        """Returns a formatted xpath string"""
-        nm, at = self.path_to(name)
-        if at is None:
-            return nm
-        else:
-            return "%s[@%s]" % (nm, at)
-
-    def xpath_to_subbed(self, target):
-        res = []
-        current = self
-        for item in target.split('.'):
-            self.logger.debug("xpath_to search for %s", item)
-            path = PathBuilder(current, item)
-            self.logger.debug("xpath_to current path %s", path)
-            if path:
-                if '[' in path[0] and res:
-                    goner = res.pop()
-                    self.logger.debug('xpath_to popping last item %s', goner)
-
-                res.extend(path)
-                self.logger.debug('xpath_to extending path to %s', res)
-            current = current.get(item)
-        final_path = '/'.join(res)
-        final_path = final_path.replace(self.name, '.')
-        return final_path
 
     # attempted on 3-18-2014
     def xpath_to(self, tag):
         paths = self.get_all_paths()
+
         def is_in(path):
             return path.endswith(tag)
+
         possibilities = filter(is_in, paths)
-    ##    print possibilities
+        self.logger.debug('xpath_to possibilities: %s', possibilities)
+
+        if len(possibilities) > 1:
+            possibilities = filter(lambda x: x.endswith('.%s' % tag), possibilities)
+            self.logger.debug('cutting possibilities down to: %s', possibilities)
+
+
         if len(possibilities) == 1:
             tokens = possibilities[0].split('.')
-            if self.is_att(tokens[-1]):
+            if self._is_att(tokens[-1]):
                 res = '/'.join(tokens[:-1]) + "[@%s]" % tokens[-1]
             else:
                 res = '/'.join(tokens)
@@ -429,10 +374,12 @@ class XCheck(object):
             raise self.error, "Cannot use %s as child checker" % child
 
         if self.has_child(child.name):
-            raise DuplicateTagError, "Cannot add %s as child. Already exists" % child.name
+            raise DuplicateTagError(
+                "Cannot add %s as child. Already exists" % child.name)
 
         if self.has_attribute(child.name):
-            raise DuplicateTagError("Cannot add %s as child. Exists as attribute" % child.name)
+            raise DuplicateTagError(
+                "Cannot add %s as child. Exists as attribute" % child.name)
 
         self.children.append(child)
         self.logger.log(INIT, "Adding child %s", child.name)
@@ -487,7 +434,6 @@ class XCheck(object):
         Return True if all is good, raise an error otherwise
         """
         #
-##        raise XCheckError("Do not check simple content with XCheck")
         self.logger.debug('checking content %s', item)
         self.normalize_content(item)
         return True
@@ -708,52 +654,27 @@ class XCheck(object):
 
     def insert_node(self, parent, child):
         """insert_node(parent, child)
+        Inserts a new node into the parent node
 
-        Takes a node and inserts a child node, based on the organiziational
-        rules of the checker.
-
-        :param parent, child: ElementTree.Elements to manipulate
-
-        .. warning::
-
-            Only works on first-generation children of the checker!
+        :param Element: parent
+        :param Element: child
         """
-        if parent.tag != self.name:
-            raise self.error(
-                "%sCheck cannot insert into node tag %s" % (
-                    self.name, parent.tag) )
+        insert_node(self, parent, child)
 
-        known_children = [ch.name for ch in self.children]
-        if child.tag not in known_children:
-            raise self.error(
-                "%sCheck cannot insert %s into node" % (self.name, child.tag))
+    def insert_new_node(self, parent,
+            child_name, child_text=None, child_atts=None):
+        """insert_new_node(parent, child_name[, child_text, child_atts])
+        Creates and inserts a new node.
 
+        :param string: child_name
+        :param string: child_text
+        :param dict: child_atts
+        """
+        child_atts = child_atts or {}
+        new_elem = ET.Element(child_name, child_atts)
+        new_elem.text = child_text
+        self.insert_node(parent, new_elem)
 
-        parent_children = [ch.tag for ch in parent]
-        parent_children.reverse()
-
-        if child.tag in parent_children:
-            idx = parent_children.index(child.tag)
-            ins = len(parent_children)-idx
-            parent.insert(ins, child)
-        else:
-            idx = known_children.index(child.tag)
-            found_tag = None # tag in parent children to anchor the insertion
-            while found_tag is None:
-                idx += 1
-                if idx < len(known_children):
-                    tag_to_look_for = known_children[idx]
-                    if tag_to_look_for in parent_children:
-                        found_tag = tag_to_look_for
-                else:
-                    found_tag = known_children[-1]
-            parent_children.reverse()
-            if found_tag in parent_children:
-                idx = parent_children.index(found_tag)
-            else:
-                idx = len(parent_children)
-
-            parent.insert(idx, child)
 
     def sort_children(self, parent, child_name, sortkey, reverse=False):
         """sort_children(parent, child_name, sortkey, reverse=False)
@@ -885,29 +806,6 @@ class XCheck(object):
         """
         raise NotImplementedError
 
-
-    def new_get(self, target):
-        """get(target)
-        returns the Checker or None
-        Supports dotted targets. Returns None (or should it freak?)
-        """
-        current = self
-        items = target.split('.')
-        res = []
-        while items:
-            next_target = items.pop(0)
-            if next_target is current.attributes:
-                return current.attributes[next_target]
-            path = PathBuilder(current, next_target)
-            if path is None:
-                return None
-            res.append(path)
-            for child in current.children:
-                if child.name == next_target:
-                    current = child
-            current = current.get(next_target)
-        return current
-
     # cribbed from https://stackoverflow.com/questions/5671486
     def get_all_paths(self, force=False):
         if not force and self._all_paths:
@@ -945,27 +843,31 @@ class XCheck(object):
 from dictwrap import *
 
 from datetimecheck import DatetimeCheck
+
+
 if __name__=='__main__':
-    from  utils import debug_formatter
+    from  utils import debug_formatter, indent
     oopslog = logging.getLogger('oopsCheck')
     streamer = logging.StreamHandler()
     streamer.setFormatter(debug_formatter)
-    oopslog.addHandler(streamer)
+    logging.getLogger().addHandler(streamer)
 
-    oopslog.setLevel(logging.DEBUG)
+##    oopslog.setLevel(logging.DEBUG)
 
 
     oops = XCheck('oops')
     this = oops
     checks = {}
     for idx, ch in enumerate('abcdefg'):
+
         n = XCheck(ch)
+        print idx, ch, n
         checks[ch] = n
         this.add_child(n)
         if idx % 2:
             this = n
 
-    oopslog.setLevel(logging.ERROR)
+##    oopslog.setLevel(logging.ERROR)
 
     cidcheck = XCheck('cid')
 
@@ -973,19 +875,53 @@ if __name__=='__main__':
 
     copycheck = XCheck('cid')
     oops.add_attribute(copycheck)
-    print "oops.cid:", copycheck, "or c.cid:", cidcheck
 
-##    for ch in 'abcdefg':
-##        print ch, PathBuilder(oops, ch), oops.xpath_to(ch)
+    for ch in sorted(checks):
+        print ch, oops.xpath_to(ch)
 
-    print "All Paths"
-    for path in oops.get_all_paths():
-        print path, oops.get(path)
-    print "both none:", oops.xpath_to('b.g'), oops.get('b.g')
+    oopslog.setLevel(logging.DEBUG)
+    print oops.xpath_to('d')
+    oopslog.setLevel(logging.WARNING)
 
-    print oops.get('oops.b.c.cid') == cidcheck
+    import sys
+    import traceback
+    node = ET.fromstring("<oops cid=''/>")
+    print node
+##    try:
+##        print oops(node)
+##    except Exception as E:
+##        traceback.print_exception(*sys.exc_info())
+##        print
+
 ##    oopslog.setLevel(logging.DEBUG)
-    print oops.get('c.cid') == cidcheck
-    print oops.get('f.g')
+    try:
+        insert_node(oops, node, ET.Element('b'))
+        oops.insert_node(node, ET.Element('a'))
+        oops.insert_node(node, ET.Element('c', cid="hi"))
+##        oopslog.setLevel(logging.DEBUG)
+        oops.insert_node(node, ET.Element('g'))
 
+        insert_node(oops, node, ET.Element('e'))
+        indent(node)
+        ET.dump(node)
+##        oops(node)
+    except Exception as E:
+        traceback.print_exception(*sys.exc_info())
+        print
 
+    testlog = logging.getLogger('testCheck')
+    streamer = logging.StreamHandler()
+    streamer.setFormatter(debug_formatter)
+    testlog.addHandler(streamer)
+
+##    testlog.setLevel(logging.DEBUG)
+##
+    ch = XCheck('test')
+    ch.add_child(XCheck('word', max_occurs = 4))
+
+    node = ET.fromstring('<test/>')
+##    ch.logger.setLevel(logging.DEBUG)
+    for x in range(4):
+        ch.insert_node(node, ET.fromstring('<word />'))
+        words = list(node.findall('word'))
+        print words

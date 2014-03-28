@@ -15,6 +15,9 @@ import xcheck
 print xcheck
 from  xcheck import *
 
+import logging # for debugging tests
+_dstr = "%(name)s - %(levelname)s - %(message)s [%(module)s:%(lineno)d]"
+debug_formatter = logging.Formatter(_dstr)
 
 ### This can be used by several different tests
 ##dude = XCheck('dude', help="A simple contact list item")
@@ -791,12 +794,20 @@ class SelectionCheckTC(unittest.TestCase):
         "SelectionCheck() fails if value not in list of acceptable values"
         self.assertRaises(self.s.error, self.s, 'delta')
 
+    def testNormalizeNone(self):
+        self.s.allow_none = True
+        self.assertTrue(self.s.check_content(None))
+
+    def testNormalizeNone_NotAllowed(self):
+        self.s.allow_none = False
+        self.assertRaises(XCheckError, self.s.check_content, None)
+
 class SelectionCallbackTC(unittest.TestCase):
     delta_ok = False
 
     def getValues(self):
         if self.delta_ok:
-            return['alpha', 'beta', 'gamma', 'delta']
+            return ['alpha', 'beta', 'gamma', 'delta']
         else:
             return ['alpha', 'beta', 'gamma']
 
@@ -819,6 +830,12 @@ class SelectionCallbackTC(unittest.TestCase):
         self.delta_ok = True
         self.failUnless(self.s, 'delta')
         self.delta_ok = False
+
+    def test_values_property(self):
+        self.delta_ok = False
+        self.assertListEqual(self.s.values, ['alpha', 'beta', 'gamma'])
+        self.delta_ok = True
+        self.assertListEqual(self.s.values, ['alpha', 'beta', 'gamma', 'delta'])
 
 class ListCallbackTC(unittest.TestCase):
     delta_ok = False
@@ -1522,8 +1539,8 @@ class LoaderTC(unittest.TestCase):
         self.assertFalse(ch.ignore_case)
 
     def test_selection_failure(self):
-        self.assertRaises(NoSelectionError,load_checker,'<selection name="fail" />')
-        self.assertRaises(NoSelectionError,load_checker,'<selection name="fail" values="" />')
+        self.assertRaises(NoSelectionError, load_checker, '<selection name="fail" />')
+        self.assertRaises(NoSelectionError, load_checker, '<selection name="fail" values="" />')
 
     # as a result of Issue #10
     def test_selection_allow_none(self):
@@ -1650,6 +1667,7 @@ class TestWrap3(unittest.TestCase):
         empty_example._set_elem_value('item','one')
 
         self.assertEqual(empty_example._get_elem_value('item'),'one')
+        self.assertIsInstance(empty_example._elem.find('item'), ET.Element)
 
 class TestListRequirements(unittest.TestCase):
     def setUp(self):
@@ -1704,6 +1722,11 @@ class TestGetChecker(unittest.TestCase):
     def test_bad_get_calls(self):
         self.assertIsNone(self.ch.get('class.city'))
 
+    def test_two_step_get(self):
+        addy = self.ch.get('address')
+        self.assertIsInstance(addy.get('street'), TextCheck)
+        self.assertIsInstance(addy.get('city'), IntCheck)
+
 
 #Issue 9 was abandoned, but left these important facts
 class TestIssue9(unittest.TestCase):
@@ -1745,13 +1768,53 @@ class TestInsertNode(unittest.TestCase):
     def tearDown(self):
         del self.ch
 
+    def test_insert_node(self):
+        ch = XCheck('test')
+        ch.add_child(TextCheck('word', max_occurs = 4))
+
+        node = ET.fromstring('<test/>')
+        for x in range(4):
+            ch.insert_node(node, ET.fromstring('<word>x</word>'))
+            words = list(node.findall('word'))
+            self.assertEqual(len(words),(x+1))
+
+    def test_insert_node_order(self):
+        ch = XCheck('test')
+        ch.add_child(TextCheck('word', max_occurs = 4))
+        ch.add_child(IntCheck('number', max_occurs = 3))
+
+        node = ET.fromstring('<test/>')
+##        ch.logger.setLevel(logging.DEBUG)
+        for x in range(3):
+            ch.insert_node(node, ET.fromstring('<word>x</word>'))
+            ch.insert_node(node, ET.fromstring('<number>%d</number>' % x))
+            words = list(node.findall('word'))
+            self.assertEqual(len(words), (x+1))
+            numbers = list(node.findall('number'))
+            self.assertEqual(len(numbers), (x+1))
+
+        ch.insert_node(node, ET.fromstring('<word>y</word>'))
+##        ch.logger.setLevel(logging.WARNING)
+        words = list(node.findall('word'))
+        self.assertEqual(len(words), 4)
+
+        self.assertListEqual([c.tag for c in node],
+            ['word', 'word', 'word', 'word', 'number', 'number', 'number'])
+
+    def test_too_many_children(self):
+        ch = XCheck('test')
+        ch.add_child(TextCheck('word', max_occurs = 4))
+
+        node = ET.fromstring('<test/>')
+        for x in range(4):
+            ch.insert_node(node, ET.fromstring('<word>x</word>'))
+
+        self.assertRaises(ch.error, ch.insert_node, node, ET.fromstring('<word>Die</word>'))
+##        ET.dump(node)
+
+
 
 class TestXPathTo(unittest.TestCase):
-    def setUp(self):
-        self.ch = dude
-
-    def tearDown(self):
-        del self.ch
 
     def test_tokens(self):
         pairs = (('dude', '.'),
@@ -1762,7 +1825,7 @@ class TestXPathTo(unittest.TestCase):
                 ('word', './name/code[@word]'),
                 )
         for token, path in pairs:
-            self.assertEqual(self.ch.xpath_to(token), path)
+            self.assertEqual(dude.xpath_to(token), path)
 
     def test_dotted_pairs(self):
         pairs = (
@@ -1771,13 +1834,14 @@ class TestXPathTo(unittest.TestCase):
                 ('first.nick', './name/first[@nick]'),
                 ('name.first.nick', './name/first[@nick]'),
                 ('name.code', './name/code'),
+                ('dude.name', './name'),
                 )
         for token, path in pairs:
-            self.assertEqual(self.ch.xpath_to(token), path)
+            self.assertEqual(dude.xpath_to(token), path)
 
 
 class TestNewGet(unittest.TestCase):
-    def test_newet(self):
+    def test_newget(self):
         oops = XCheck('oops')
         this = oops
         for idx, ch in enumerate('abcdefg'):
@@ -1791,6 +1855,18 @@ class TestNewGet(unittest.TestCase):
 
         oops.add_attribute(TextCheck('name'))
         self.assertIsInstance(oops.get('name'), TextCheck)
+
+        for ch in 'abcdefg':
+            self.assertIsNotNone(oops.xpath_to(ch))
+            self.assertIsNotNone(oops.get(ch))
+
+        b = oops.get('b')
+        self.assertIsNotNone(b.xpath_to('c'))
+        self.assertIsNotNone(b.xpath_to('d'))
+        self.assertIsNotNone(b.xpath_to('e'))
+        self.assertIsNotNone(b.xpath_to('f'))
+        self.assertIsNotNone(b.xpath_to('g'))
+        self.assertIsNone(b.xpath_to('a'))
 
 
 class Issue10Test(unittest.TestCase):
@@ -1816,7 +1892,41 @@ class Issue10Test(unittest.TestCase):
         self.assertTrue(v(None))
 
 
+class Issue11Test(unittest.TestCase):
+    def setUp(self):
+        self.ch = XCheck('test')
+        self.ch.addattribute(TextCheck('name'))
+        kid = TextCheck('kid')
+        kid.addattribute(IntCheck('age', required=False))
+        self.ch.add_child(kid)
+
+
+    def tearDown(self):
+        del self.ch
+
+    def testIsAtt(self):
+        self.assertTrue(self.ch.is_att('name'))
+        self.assertTrue(self.ch.is_att('.name'))
+        self.assertTrue(self.ch.is_att('age'))
+        self.assertTrue(self.ch.is_att('.age'))
+        self.assertTrue(self.ch.is_att('kid.age'))
+        self.assertFalse(self.ch.is_att('kid'))
+        self.assertFalse(self.ch.is_att('test'))
+
+    def testXpath(self):
+        self.assertEqual(self.ch.get('name'), self.ch.get('.name'))
+        self.assertTrue(self.ch.get('.name'))
+        self.assertTrue(self.ch.get('age'))
+        self.assertTrue(self.ch.get('.age'))
+        self.assertTrue(self.ch.get('kid.age'))
+        self.assertEqual(self.ch.get('age'), self.ch.get('.age'))
+        self.assertEqual(self.ch.get('age'), self.ch.get('kid.age'))
+
 
 
 if __name__=='__main__':
+    streamer = logging.StreamHandler()
+    streamer.setFormatter(debug_formatter)
+    logging.getLogger().addHandler(streamer)
+
     unittest.main(verbosity=0)

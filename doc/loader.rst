@@ -51,8 +51,7 @@ Alternately, this could be created in a top-down manner:
 
     # ... etc
 
-The :func:`load_checker` function allows users to write definition nodes that
-can be translated into an XML definition node:
+The :func:`load_checker` function allows users to write definition nodes in |XML|:
 
 .. code-block:: python
 
