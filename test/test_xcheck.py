@@ -132,6 +132,23 @@ class XCheckTC(unittest.TestCase):
         test_check = XCheck('child', min_occurs="0")
         self.assertEqual(test_check.min_occurs, 0, "Did not coerce min_occurs attribute")
 
+class OtherAttributesTestCase(unittest.TestCase):
+    def setUp(self):
+        self.val = IntCheck('val', min=1, max=10, error=TypeError, required=False)
+        self.t = XCheck('test')
+        self.t.addattribute(self.val)
+
+    def tearDown(self):
+        del self.t
+        del self.val
+
+    def test_good_input(self):
+        self.assertTrue(self.t, '<test val="1" />')
+
+    def test_okay_input(self):
+        "IntCheck as non required attribute passes"
+        self.assertTrue(self.t, "<test />")
+
 class AttributesTC(unittest.TestCase):
     def setUp(self):
         self.val = IntCheck('val', min=1, max=10, error=TypeError)
@@ -160,17 +177,17 @@ class AttributesTC(unittest.TestCase):
     def testPassWithGoodAttribute(self):
         "XCheck.addattribute() adds valid attributes"
         self.t.addattribute(XCheck('b') )
-        self.failUnless('b' in self.t.attributes,
+        self.assertTrue('b' in self.t.attributes,
             'did not append attribute properly')
 
     def testAttributeValidation(self):
         "XCheck() accepts valid attribute values"
-        self.failUnless(self.t('<test val="3" />'))
+        self.assertTrue(self.t('<test val="3" />'))
 
     def testNonRequiredAttribute(self):
         "XCheck() accepts a missing non-required attribute"
         self.t.attributes['val'].required = False
-        self.failUnless(self.t('<test />'))
+        self.assertTrue(self.t('<test />'))
 
     def testDoubleAttribute(self):
         "XCheck.addattribute() raises XMLAttributeError trying to add a second attribute with duplicate name"
@@ -186,8 +203,8 @@ class AttributesTC(unittest.TestCase):
             '<test val="4" ex="true"/>')
 
     def testUnchecked(self):
-        "XCheck() raises UncheckedXMLAttributeError if a required attribute was not checked"
-        self.assertRaises(UncheckedXMLAttributeError, self.t, '<test />')
+        "XCheck() raises MissingAttributeError if a required attribute was not checked"
+        self.assertRaises(MissingAttributeError, self.t, '<test />')
 
     def testEmptyAttribute(self):
         "XCheck() raises ValueError if value for required attribute is empty"
@@ -205,32 +222,32 @@ class UnorderedChildrenTC(unittest.TestCase):
 
     def testAcceptableVariations(self):
         "Unordered check accepts children in order"
-        self.failUnless(self.c('<test><a/><b/><c/></test>'),
+        self.assertTrue(self.c('<test><a/><b/><c/></test>'),
             "Unordered check didn't like ABC")
-        self.failUnless(self.c('<test><a/><c/><b/></test>'),
+        self.assertTrue(self.c('<test><a/><c/><b/></test>'),
             "Unordered check didn't like ACB")
-        self.failUnless(self.c('<test><b/><a/><c/></test>'),
+        self.assertTrue(self.c('<test><b/><a/><c/></test>'),
             "Unordered check didn't like BAC")
-        self.failUnless(self.c('<test><b/><c/><a/></test>'),
+        self.assertTrue(self.c('<test><b/><c/><a/></test>'),
             "Unordered check didn't like BCA")
-        self.failUnless(self.c('<test><c/><a/><b/></test>'),
+        self.assertTrue(self.c('<test><c/><a/><b/></test>'),
             "Unordered check didn't like CAB")
-        self.failUnless(self.c('<test><c/><b/><a/></test>'),
+        self.assertTrue(self.c('<test><c/><b/><a/></test>'),
             "Unordered check didn't like CBA")
-        self.failUnless(self.c('<test><a/><c/></test>'),
+        self.assertTrue(self.c('<test><a/><c/></test>'),
             "Unordered check didn't like AC")
-        self.failUnless(self.c('<test><c/><a/></test>'),
+        self.assertTrue(self.c('<test><c/><a/></test>'),
             "Unordered check didn't like CA")
-        self.failUnless(self.c('<test><a/><b/><b/><c/></test>'),
+        self.assertTrue(self.c('<test><a/><b/><b/><c/></test>'),
             "Unordered check didn't like ABBC")
-        self.failUnless(self.c('<test><b/><a/><b/><c/></test>'),
+        self.assertTrue(self.c('<test><b/><a/><b/><c/></test>'),
             "Unordered check didn't like BABC")
-        self.failUnless(self.c('<test><b/><b/><a/><c/></test>'),
+        self.assertTrue(self.c('<test><b/><b/><a/><c/></test>'),
             "Unordered check didn't like BBAC")
 
     def testUnexpectedChild(self):
         "Unordered check fails if it finds an unexpected child"
-        self.assertRaises(UnexpectedChildError, self.c,
+        self.assertRaises(MissingChildError, self.c,
             '<test><unwanted/></test>')
 
     def testNotEnoughChidren(self):
@@ -259,39 +276,41 @@ class ChildrenTC(unittest.TestCase):
     def tearDown(self):
         del self.p
         del self.m
+        logging.getLogger().setLevel(logging.CRITICAL)
+
 
     def testPassChildren(self):
         "XCheck() accepts known children elements"
-        self.failUnless(self.p("<parent><child/></parent>"))
+        self.assertTrue(self.p("<parent><child/></parent>"))
 
     def testPassWithMultipleChildren(self):
         "XCheck() accepts multiple copies of one child if child.max_occurs allows"
         self.p.children[0].max_occurs= 2
-        self.failUnless(self.p("<parent><child/><child/></parent>"))
+        self.assertTrue(self.p("<parent><child/><child/></parent>"))
 
     def testPassWithSequentialChildren(self):
         "XCheck() accepts a sequence of children"
         self.p.add_child(self.m)
-        self.failUnless(self.p("<parent><child/><kid/><kid/></parent"))
+        self.assertTrue(self.p("<parent><child/><kid/><kid/></parent"))
 
     def testPassWithGrandChildren(self):
         "XCheck() accepts multiple levels of children"
         self.p.children[0].add_child(self.m)
-        self.failUnless(self.p("<parent><child><kid/><kid/></child></parent>"))
+        self.assertTrue(self.p("<parent><child><kid/><kid/></child></parent>"))
 
     def testFailWithUnexpectedChildren(self):
         "XCheck() raises UnexpectedChildError if element has children and checker expects none"
         t = XCheck('check', check_children = True)
         self.assertRaises(UnexpectedChildError, t, "<check><unwanted/></check>")
 
-    def testIgnoreChildren(self):
-        "XCheck() should ignore children if told"
-        t = XCheck('check', check_children = False)
-        self.failUnless(t("<check><unexpected/></check>"),
-            "XCheck checked children even when told not to")
-        self.failUnless(self.p("<parent><unexected/></parent>",
-            check_children = False),
-            "XCheck checked children at call when told not to")
+##    def testIgnoreChildren(self):
+##        "XCheck() should ignore children if told"
+##        t = XCheck('check', check_children = False)
+##        self.assertTrue(t("<check><unexpected/></check>"),
+##            "XCheck checked children even when told not to")
+##        self.assertTrue(self.p("<parent><unexected/></parent>",
+##            check_children = False),
+##            "XCheck checked children at call when told not to")
 
     def testFailUnknownChild(self):
         "XCheck() fails with unknown child"
@@ -309,18 +328,18 @@ class ChildrenTC(unittest.TestCase):
     def testAcceptOptionalChild(self):
         "XCheck() accepts an optional child"
         self.p.children[0].min_occurs= 0
-        self.failUnless(self.p('<parent/>'),
+        self.assertTrue(self.p('<parent/>'),
             "XCheck cannot handle optional child")
-        self.failUnless(self.p('<parent><child/></parent>'),
+        self.assertTrue(self.p('<parent><child/></parent>'),
             "XCheck cannot handle an optional child that exists")
 
     def testAcceptOptionalChild2(self):
         "XCheck() accepts an optional child that is not the first child"
         self.m.min_occurs = 0
         self.p.add_child(self.m)
-        self.failUnless(self.p('<parent><child/></parent'),
+        self.assertTrue(self.p('<parent><child/></parent'),
             "XCheck cannot handle an optional child that is not the first")
-        self.failUnless(self.p('<parent><child/><kid/></parent>'), "Oops")
+        self.assertTrue(self.p('<parent><child/><kid/></parent>'), "Oops")
 
 class TextCheckTC(unittest.TestCase):
     def setUp(self):
@@ -345,20 +364,20 @@ class TextCheckTC(unittest.TestCase):
 
     def testPassWithMinString(self):
         "TextCheck() accepts strings of the minimum length"
-        self.failUnless(self.t('abcd') )
+        self.assertTrue(self.t('abcd') )
 
     def testPassWithMaxString(self):
         "TextCheck() accepts strings of the maximum length"
-        self.failUnless(self.t('abcdefgh'), \
+        self.assertTrue(self.t('abcdefgh'), \
             "TextCheck() accepted a string longer than the maximum length")
 
     def testPassWithElement(self):
         "TextCheck() accepts an elementtree.Element"
-        self.failUnless(self.t(ET.fromstring('<text>abcde</text>') ) )
+        self.assertTrue(self.t(ET.fromstring('<text>abcde</text>') ) )
 
     def testPassWithElementString(self):
         "TextCheck() accepts an xml-formatted string"
-        self.failUnless(self.t('<text>abcdef</text>'))
+        self.assertTrue(self.t('<text>abcdef</text>'))
 
     def testFailWithTooShortString(self):
         "TextCheck() fails if the string is too short"
@@ -389,7 +408,7 @@ class TextCheckTC(unittest.TestCase):
     def testPassWithPattern(self):
         "TextCheck() accepts strings that match the given pattern"
         t = TextCheck('test', pattern=r'\S+@\S+\.\S+')
-        self.failUnless(t('english@spiritone.com') )
+        self.assertTrue(t('english@spiritone.com') )
 
     def testFailWithPattern(self):
         "TextCheck() fails if the string doesn't match the given pattern"
@@ -402,6 +421,13 @@ class TextCheckTC(unittest.TestCase):
 
     def testNormalizingNone(self):
         self.assertRaises(self.t.error, self.t, None, normalize=True)
+
+    def test_allow_none(self):
+        t = TextCheck('a', allow_none=True)
+        self.assertTrue(t('<a />'))
+        self.assertTrue(t(None))
+
+
 
 class EmailCheckTC(unittest.TestCase):
     def setUp(self):
@@ -416,7 +442,7 @@ class EmailCheckTC(unittest.TestCase):
 
     def testDefaultEmail(self):
         "EmailCheck() accepts valid simple email addresses"
-        self.failUnless(self.t('english@spiritone.com'))
+        self.assertTrue(self.t('english@spiritone.com'))
 
     def testDefaults(self):
         "EmailCheck creates the proper default attributes"
@@ -425,11 +451,11 @@ class EmailCheckTC(unittest.TestCase):
 
     def testDefaultEmailasNoneString(self):
         "EmailCheck() defaults to allow 'None'"
-        self.failUnless(self.t('None'))
+        self.assertTrue(self.t('None'))
 
     def testDefaultEmailAsNone(self):
         "EmailCheck() defaults to allow None object"
-        self.failUnless(self.t(None))
+        self.assertTrue(self.t(None))
 
     def testDefaultEmailAsBlank(self):
         "EmailCheck() fails if email is blank and allow_blank is False"
@@ -437,7 +463,7 @@ class EmailCheckTC(unittest.TestCase):
 
     def testCustomAllowNone(self):
         "EmailCheck handles allow_none=False"
-        self.failIf(self.n.allow_none)
+        self.assertFalse(self.n.allow_none)
 
     def testFailCustomAllowNone(self):
         "EmailCheck() fails if allow_none is false and given None"
@@ -445,11 +471,11 @@ class EmailCheckTC(unittest.TestCase):
 
     def testFailCustomAllowBlank(self):
         "EmailCheck() allows a blank string if allow_blank is true"
-        self.failUnless(self.b(''))
+        self.assertTrue(self.b(''))
 
     def testFailCustomAllowBlankEmpty(self):
         "EmailCheck() allows an empty string if allow_blank is true"
-        self.failUnless(self.b(' '))
+        self.assertTrue(self.b(' '))
 
 class IntCheckTC(unittest.TestCase):
     "These test if the defaults are created properly"
@@ -462,24 +488,24 @@ class IntCheckTC(unittest.TestCase):
     #~ valid input tests
     def testPassWithInt(self):
         "IntCheck() accepts in-bounds integer"
-        self.failUnless(self.t( 9))
+        self.assertTrue(self.t( 9))
 
     def testPassWithValidString(self):
         "IntCheck() accepts integer-equivalent string"
-        self.failUnless(self.t( '6'))
-        self.failUnless(self.t('19'))
+        self.assertTrue(self.t( '6'))
+        self.assertTrue(self.t('19'))
 
     def testPassWithValidFloat(self):
         "IntCheck() accepts with integer-equivalent float"
-        self.failUnless(self.t( 6.0 ) )
+        self.assertTrue(self.t( 6.0 ) )
 
     def testPassWithElement(self):
         "IntCheck() accepts valid element.text"
-        self.failUnless(self.t(ET.fromstring('<test>4</test>')))
+        self.assertTrue(self.t(ET.fromstring('<test>4</test>')))
 
     def testPassWithXML(self):
         "IntCheck() accepts valid xml strings"
-        self.failUnless(self.t('<test>4</test>'))
+        self.assertTrue(self.t('<test>4</test>'))
 
     #~ bad input tests
     def testFailWithEmptyString(self):
@@ -564,15 +590,15 @@ class SelectionCheckTC(unittest.TestCase):
     def testPassWithNonCaseSensitiveChoice(self):
         "SelectionCheck() accepts value in list without case match and caseSensitive is False"
         self.s.ignore_case = True
-        self.failUnless(self.s('Alpha'))
+        self.assertTrue(self.s('Alpha'))
 
     def testPassWithElementText(self):
         "SelectionCheck() accepts appropriate xml-formmated text"
-        self.failUnless(self.s('<choice>alpha</choice>'))
+        self.assertTrue(self.s('<choice>alpha</choice>'))
 
     def testPassWithElement(self):
         "SelectionCheck() accepts appropriate element.text"
-        self.failUnless(self.s(ET.fromstring('<choice>alpha</choice>')))
+        self.assertTrue(self.s(ET.fromstring('<choice>alpha</choice>')))
 
     def testFailWithOutOfListValue(self):
         "SelectionCheck() fails if value not in list of acceptable values"
@@ -587,28 +613,28 @@ class BoolCheckTC(unittest.TestCase):
 
     def testPassWithBoolean(self):
         "BoolCheck() accepts True or False types"
-        self.failUnless(self.b(True))
-        self.failUnless(self.b(False))
+        self.assertTrue(self.b(True))
+        self.assertTrue(self.b(False))
 
     def testPassWithBooleanString(self):
         "BoolCheck() accepts boolean-equivalent strings"
-        self.failUnless(self.b('True'))
-        self.failUnless(self.b('False'))
+        self.assertTrue(self.b('True'))
+        self.assertTrue(self.b('False'))
 
     def testPassWithLowerCaseBoolanString(self):
         "BoolCheck() accepts boolean-equivalent strings despite capitalization"
         for x in ['true', 'TRUE', 'false', 'FALSE']:
-            self.failUnless(self.b( x))
+            self.assertTrue(self.b( x))
 
     def testPassWithYesNoAnyCase(self):
         "BoolCheck() accepts yes and no variants"
         for x in ['yes', 'YES', 'y', 'Y', 'no', 'NO', 'n', 'N']:
-            self.failUnless(self.b(x))
+            self.assertTrue(self.b(x))
 
     def testPassWithNoneAsFalse(self):
         "BoolCheck() accepts NoneType if none_is_false is True"
         self.b.none_is_false=True
-        self.failUnless(self.b(None))
+        self.assertTrue(self.b(None))
 
     def testFailWithoutNoneAnFalse(self):
         "BoolCheck() fails if NoneType and none_is_false is False"
@@ -618,7 +644,7 @@ class BoolCheckTC(unittest.TestCase):
     def testPassWithNoneAsFalseAndNoneString(self):
         "BoolCheck() accepts 'None' if none_is_false is True"
         self.b.none_is_false = True
-        self.failUnless(self.b('None'))
+        self.assertTrue(self.b('None'))
 
     def testFailWithoutNoneAsFalseandNoneString(self):
         "BoolCheck() fails with 'none' if none_is_false is False"
@@ -628,19 +654,19 @@ class BoolCheckTC(unittest.TestCase):
     def testPassWithValidString(self):
         "BoolCheck() accepts a variety of positive and negative strings"
         for x in ['true','yes','1','t','y','false','no','0','f','n']:
-            self.failUnless(self.b(x))
-            self.failUnless(self.b(x.upper()))
-            self.failUnless(self.b(x.title()))
+            self.assertTrue(self.b(x))
+            self.assertTrue(self.b(x.upper()))
+            self.assertTrue(self.b(x.title()))
 
     def testPassWithXMLText(self):
         "BoolCheck() accepts xml-formatting string"
         for x in ['true','yes','1','t','y','false','no','0','f','n']:
-            self.failUnless(self.b('<flag>%s</flag>' % x))
+            self.assertTrue(self.b('<flag>%s</flag>' % x))
 
     def testPassWithElement(self):
         "BoolCheck() accepts xml-formatting string"
         for x in ['true','yes','1','t','y','false','no','0','f','n']:
-            self.failUnless(self.b(ET.fromstring('<flag>%s</flag>' % x) ) )
+            self.assertTrue(self.b(ET.fromstring('<flag>%s</flag>' % x) ) )
 
     def testNormalizedValues(self):
         "Boolcheck() returns the correct normalized value"
@@ -665,7 +691,7 @@ class ListCheckTC(unittest.TestCase):
 
     def testSingleValidString(self):
         "ListCheck accepts a valid list of length 1"
-        self.failUnless(self.l("alpha"))
+        self.assertTrue(self.l("alpha"))
 
     def testFailWithOutOfValueItem(self):
         'ListCheck fails if an item in the list is not in value list'
@@ -679,7 +705,7 @@ class ListCheckTC(unittest.TestCase):
     def testPassWithDuplicateItems(self):
         "ListCheck accepts duplicates if allowDuplicates is True"
         self.l.allow_duplicates = True
-        self.failUnless(self.l('alpha, alpha'))
+        self.assertTrue(self.l('alpha, alpha'))
 
     def testFailIfTooManyItems(self):
         "ListCheck fails if list has too many items"
@@ -702,22 +728,22 @@ class ListCheckTC(unittest.TestCase):
         "ListCheck accpets items if wrong case and ignore_case is True"
         self.l.ignore_case = True
         item ='alpha, gamma, delta'
-        self.failUnless( self.l(item.upper()) )
-        self.failUnless( self.l(item.title()) )
+        self.assertTrue( self.l(item.upper()) )
+        self.assertTrue( self.l(item.title()) )
 
     def testPassWithAlternateDelimiter(self):
         "ListCheck accepts alternate deliminator"
         self.l.delimiter="::"
-        self.failUnless(self.l("alpha::gamma:: delta") )
+        self.assertTrue(self.l("alpha::gamma:: delta") )
 
     def testPassWithEmptyValues(self):
         "ListCheck() accepts anything if the value list is empty"
         l = ListCheck('anythinggoes', values = [])
-        self.failUnless(l("alpha, beta, gamma"), "ListCheck demands values")
+        self.assertTrue(l("alpha, beta, gamma"), "ListCheck demands values")
 
     def testAcceptEmptyList(self):
         "ListCheck() accepts an empty list if minitems is 0"
-        self.failUnless(self.l('<letter/>'), "ListCheck cannot handle empty list")
+        self.assertTrue(self.l('<letter/>'), "ListCheck cannot handle empty list")
 
     def testNormalizedValue(self):
         self.assertEqual(['alpha', 'gamma'] , self.l("alpha, gamma", normalize=True))
@@ -780,15 +806,15 @@ class SelectionCheckTC(unittest.TestCase):
     def testPassWithNonCaseSensitiveChoice(self):
         "SelectionCheck() accepts value in list without case match and caseSensitive is False"
         self.s.ignore_case = True
-        self.failUnless(self.s('Alpha'))
+        self.assertTrue(self.s('Alpha'))
 
     def testPassWithElementText(self):
         "SelectionCheck() accepts appropriate xml-formmated text"
-        self.failUnless(self.s('<choice>alpha</choice>'))
+        self.assertTrue(self.s('<choice>alpha</choice>'))
 
     def testPassWithElement(self):
         "SelectionCheck() accepts appropriate element.text"
-        self.failUnless(self.s(ET.fromstring('<choice>alpha</choice>')))
+        self.assertTrue(self.s(ET.fromstring('<choice>alpha</choice>')))
 
     def testFailWithOutOfListValue(self):
         "SelectionCheck() fails if value not in list of acceptable values"
@@ -819,7 +845,7 @@ class SelectionCallbackTC(unittest.TestCase):
         del self.s
 
     def testPassWithCallback(self):
-        self.failUnless(self.s('alpha'))
+        self.assertTrue(self.s('alpha'))
 
     def testFailWithCallback(self):
         self.assertRaises(self.s.error, self.s, 'delta')
@@ -828,7 +854,7 @@ class SelectionCallbackTC(unittest.TestCase):
         self.delta_ok = False
         self.assertRaises(self.s.error, self.s, 'delta')
         self.delta_ok = True
-        self.failUnless(self.s, 'delta')
+        self.assertTrue(self.s, 'delta')
         self.delta_ok = False
 
     def test_values_property(self):
@@ -889,13 +915,13 @@ class DatetimeCheckTC(unittest.TestCase):
 
     def test_default_format(self):
         "DatetimeCheck() accepts the default Datetime"
-        self.failUnless(self.d('Mon Oct 26 22:20:43 2009'),
+        self.assertTrue(self.d('Mon Oct 26 22:20:43 2009'),
             "cannot parse default date")
 
     def test_custom_format(self):
         "DatetimeCheck() accepts a custom format"
         d = DatetimeCheck('test', format="%Y%m%d%H%M%S")
-        self.failUnless(d('20090101122042'), 'cannot parse custom date')
+        self.assertTrue(d('20090101122042'), 'cannot parse custom date')
 
     def test_datetime_object(self):
         "DatetimeCheck() returns a Datetime.Datetime object when requested"
@@ -931,27 +957,27 @@ class DatetimeCheckTC(unittest.TestCase):
         "DatetimeCheck() accepts month and day only"
         d = DatetimeCheck('mday', format="%b %d", min_datetime="Oct 10",
             max_datetime="Oct 20")
-        self.failUnless(d('Oct 12'), "Cannot accept month and day only")
+        self.assertTrue(d('Oct 12'), "Cannot accept month and day only")
         self.assertRaises(d.error, d, 'Oct 9')
         self.assertRaises(d.error, d, 'Nov 1')
 
     def test_format_lists(self):
         "DatetimeCheck() handles a list of formats"
         d = DatetimeCheck('formatlist', formats=['%b %d', '%b %d %Y'])
-        self.failUnless(d('Oct 1'),
+        self.assertTrue(d('Oct 1'),
             "DatetimeCheck() cannot handle the first format")
-        self.failUnless(d('Jan 1 2000'),
+        self.assertTrue(d('Jan 1 2000'),
             "DatetimeCheck() cannot handle the second format")
 
     def test_allow_none(self):
         "DatetimeCheck() allows None, optionally"
         d = DatetimeCheck('date', allow_none = True)
-        self.failUnless(d('None'), "Fails to accept string None")
-        self.failUnless(d(None), "Fails to accept None type")
-        self.failUnless(d('<date>None</date>'), "Fails to accept string-node")
-        self.failUnless(d('<date>none</date>'),
+        self.assertTrue(d('None'), "Fails to accept string None")
+        self.assertTrue(d(None), "Fails to accept None type")
+        self.assertTrue(d('<date>None</date>'), "Fails to accept string-node")
+        self.assertTrue(d('<date>none</date>'),
             "DatetimeCheck() fails to accept 'none' as node text")
-        self.failUnless(d('none'), "Fails to accept 'none' as text")
+        self.assertTrue(d('none'), "Fails to accept 'none' as text")
 
 
 class RenameTC(unittest.TestCase):
@@ -1092,19 +1118,19 @@ class XWrapTC(unittest.TestCase):
     def test__set_elem_value_only_one_value(self):
         "_set_elem_value() should not change other index values"
         self.w._set_elem_value('code', '9')
-        self.failUnlessEqual(self.w._get_elem_value('code', 1), 42)
+        self.assertEqual(self.w._get_elem_value('code', 1), 42)
 
     def test_set_list_elem_text_by_index(self):
         self.w._set_elem_value('code', '9', 1)
-        self.failUnlessEqual(self.w._get_elem_value('code', 1), 9)
+        self.assertEqual(self.w._get_elem_value('code', 1), 9)
 
     def test_set_list_elem_text_bad_input(self):
-        self.failUnlessRaises((ValueError, XCheckError),
+        self.assertRaises((ValueError, XCheckError),
             self.w._set_elem_value, 'code', 'alpha' )
 
     def test_set_list_elem_text_index_too_high(self):
         "_set_elem_value fails if the index is greater than checker max_occurs"
-        self.failUnlessRaises(IndexError,
+        self.assertRaises(IndexError,
             self.w._set_elem_value, 'first', 'Stephanie', 1)
 #### _get_elem_att
     def test__get_elem_att(self):
@@ -1117,12 +1143,12 @@ class XWrapTC(unittest.TestCase):
 
     def test__get_elem_att_by_out_of_bounds_index(self):
         "_get_elem_att() should fail if index is larger than definition allows"
-        self.failUnlessRaises(IndexError,
+        self.assertRaises(IndexError,
             self.w._get_elem_att, 'code', 'word', 6)
 
     def test__get_elem_att_with_too_high_index(self):
         "_get_elem_att() should fail if index is larger than current elements"
-        self.failUnlessRaises((IndexError, XCheckError),
+        self.assertRaises((IndexError, XCheckError),
             self.w._get_elem_att, 'code', 'word', 3)
 
 
@@ -1136,21 +1162,21 @@ class XWrapTC(unittest.TestCase):
     def test__set_elem_att_by_index(self):
         "_set_elem_att() sets the valid index"
         self.w._set_elem_att('code','word', 'test', 1)
-        self.failUnlessEqual(self.w._get_elem_att('code', 'word',1), 'test')
+        self.assertEqual(self.w._get_elem_att('code', 'word',1), 'test')
 
 ### _add_elem
     def test__add_elem_when_plain_text(self):
         "_add_elem() should work for simple node creation values"
         self.w._add_elem('code', 64, {'word': 'old'})
-        self.failUnlessEqual(self.w._get_elem_value('code', 2), 64)
-        self.failUnlessEqual(self.w._get_elem_att('code', 'word', 2),'old')
+        self.assertEqual(self.w._get_elem_value('code', 2), 64)
+        self.assertEqual(self.w._get_elem_att('code', 'word', 2),'old')
 
     def test__add_elem_no_more_allowed(self):
         "_add_elem() should fail if the number of elements has reached checker.max_occurs"
         self.w._add_elem('code', 2)
         self.w._add_elem('code', 3)
         self.w._add_elem('code', 4) #! These should be fine
-        self.failUnlessRaises(IndexError, self.w._add_elem, 'code', 5)
+        self.assertRaises(IndexError, self.w._add_elem, 'code', 5)
 
 ### miscellaneous
 
@@ -1922,6 +1948,125 @@ class Issue11Test(unittest.TestCase):
         self.assertEqual(self.ch.get('age'), self.ch.get('.age'))
         self.assertEqual(self.ch.get('age'), self.ch.get('kid.age'))
 
+class CheckCheckAttribute(unittest.TestCase):
+    def setUp(self):
+        self.ch = XCheck('a')
+        self.ch.addattribute(TextCheck('b', required=True, max_length=2))
+        self.ch.addattribute(IntCheck('c', required=False))
+
+    def tearDown(self):
+        del self.ch
+        logging.getLogger().setLevel(logging.CRITICAL)
+
+    def test_all_good(self):
+        node = ET.fromstring('<a b="b" />')
+        self.assertListEqual(check_attributes(self.ch, node), [])
+
+    def test_all_better(self):
+        node =ET.fromstring('<a b="B" c="23" />')
+        self.assertListEqual(check_attributes(self.ch, node), [])
+
+    def test_missing_required(self):
+        node = ET.fromstring('<a />')
+        res = check_attributes(self.ch, node)
+        self.assertEqual(len(res), 1)
+        self.assertIsInstance(res[0], MissingAttributeError)
+
+    def test_bad_input(self):
+        node = ET.fromstring('<x b="B" />')
+        res = check_attributes(self.ch, node)
+        self.assertEqual(len(res), 1)
+        self.assertIsInstance(res[0], MismatchedTagError )
+
+    def test_invalid_checker(self):
+        node = ET.fromstring('<a b="b" />')
+        res = check_attributes('', node)
+        self.assertEqual(len(res), 1)
+        self.assertIsInstance(res[0], NotACheckerError)
+
+    def test_invalid_node(self):
+        res = check_attributes(self.ch, '')
+        self.assertEqual(len(res), 1)
+        self.assertIsInstance(res[0], NotAnElementError)
+
+    def test_check_failure(self):
+        node = ET.fromstring('<a b="123" />')
+        res = check_attributes(self.ch, node)
+        self.assertEqual(len(res),1)
+        self.assertIsInstance(res[0], XCheckError)
+
+
+class CheckCheckNodeContents(unittest.TestCase):
+    def setUp(self):
+        self.ch = TextCheck('a', min_length=2, max_length=4)
+
+    def tearDown(self):
+        del self.ch
+        logging.getLogger().setLevel(logging.CRITICAL)
+
+    def test_all_good(self):
+        for s in ['12', '123', '1234']:
+            node = ET.fromstring('<a>%s</a>' % s)
+            res = check_node_contents(self.ch, node)
+            self.assertEqual(len(res), 0)
+
+    def test_failure(self):
+        for s in ['','1','12345']:
+            node = ET.fromstring('<a>%s</a>' % s)
+            res = check_node_contents(self.ch, node)
+            self.assertEqual(len(res), 1)
+
+    def test_no_complaint_from_bad_attributes(self):
+        "check_node_contents should ignore attributes"
+        node = ET.fromstring('<a fail="true">123</a>')
+        res = check_node_contents(self.ch, node)
+        self.assertEqual(len(res), 0)
+
+    def test_no_text(self):
+        node = ET.fromstring('<a />')
+        res = check_node_contents(self.ch, node)
+        self.assertEqual(len(res), 1)
+
+class CheckNodeOrderedChildren(unittest.TestCase):
+    def setUp(self):
+        self.ch = XCheck('a')
+        self.ch.add_child(TextCheck('b'))
+        self.ch.add_child(IntCheck('c', min=1))
+        self.ch.add_child(SelectionCheck('d', values=['hi', 'bye'], min_occurs=0, max_occurs=2))
+        self.ch.add_child(TextCheck('e'))
+
+        self.b1 = '<b>b</b>'
+        self.c0 = '<c>0</c>'
+        self.c1 = '<c>1</c>'
+        self.d1 = '<d>hi</d>'
+        self.e1 = '<e />'
+
+
+    def tearDown(self):
+        del self.ch
+        logging.getLogger().setLevel(logging.CRITICAL)
+
+    def test_all_good(self):
+        node = ET.fromstring('<a><b>b</b><c>1</c><e /></a>')
+        res = check_node_ordered_children(self.ch, node)
+        self.assertEqual(len(res), 0)
+
+    def test_all_better(self):
+        node = ET.fromstring('<a><b>b</b><c>1</c><d>hi</d><e /></a>')
+        res = check_node_ordered_children(self.ch, node)
+        self.assertEqual(len(res), 0)
+
+    def test_one_error(self):
+        node = ET.fromstring('<a><c>1</c><e /></a>')
+        res = check_node_ordered_children(self.ch, node)
+        self.assertEqual(len(res), 1)
+        self.assertIsInstance(res[0], MissingChildError)
+
+    def test_two(self):
+        'an error in a child node should be ignored by this fuction'
+        node = ET.fromstring('<a><b/><c>0</c><e/></a>')
+        res = check_node_ordered_children(self.ch, node)
+        self.assertEqual(len(res), 0)
 
 
 if __name__=='__main__':

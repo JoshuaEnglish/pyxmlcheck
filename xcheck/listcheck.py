@@ -86,8 +86,8 @@ class SelectionCheck(XCheck):
 
 
     def __call__(self, item, **kwargs):
-        self.logger.debug('__call__ %s with %s ', self.name, item)
-        self.logger.debug(' allow_none is %s', self.allow_none)
+        self.logger.debug('__call__ %s with %s (allow_none is %s)',
+             self.name, item, self.allow_none)
         if item is None and self.allow_none:
             return True
 
@@ -137,10 +137,13 @@ class ListCheck(XCheck):
                           acceptable members of the list.
     :param bool allow_duplicates: If True, items can appear more than once
                                   in the list. If false, items can only appear
-                                  once
-    min_items [default 0] -- the minimum number of items allowed in the list
-    max_items [default INF] -- the maximum number if items allowed in the list
-    ignore_case [default False] -- if True, check is not case-sensitive
+                                  once.
+    :param int min_items: The minimum number of items allowed in the list.
+                          Default 0.
+    :param int max_items: The maximum number if items allowed in the list.
+                          Default INF.
+    :param bool ignore_case: If True, check is not case-sensitive.
+                             Default False.
 
     In the call:
     _normalize = True returns a python list [default]

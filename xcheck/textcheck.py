@@ -4,6 +4,7 @@ from core import XCheck
 from infinity import INF
 
 #todo: Add no_spaces_allowed option (default False)
+# note: TextCheck does not offer the allow_none attribute. Should it?
 class TextCheck(XCheck):
     """TextCheck(name[, min_length, max_length, pattern])
     TextCheck validates text or elements with string values
