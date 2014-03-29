@@ -16,6 +16,8 @@ __history__ = """
 2013-10-12 - Rev 30 - Fixed issue 8. checker.get supports dotted names
 2014-02-01 -        - Fixed issue in XCheck.tokens
 2014-03-17 - Rev 31 - Added XCheck.get_all_items, updated xpath_to, get
+2014-03-28 - Rev 33 - Added check_ functions to replace the massively confusing
+                      XCheck.__call__ method
 """
 import logging
 import collections
@@ -43,6 +45,9 @@ class UnknownXMLAttributeError(XCheckError):
 class XMLAttributeError(XCheckError):
     "Miscellaneous XML attribute error"
 
+class MissingAttributeError(XMLAttributeError):
+    """A required attribute was not found"""
+
 class UncheckedXMLAttributeError(XCheckError):
     "a node has a spare attribute"
 
@@ -55,11 +60,15 @@ class UnexpectedChildError(XCheckError):
 class DuplicateTagError(XCheckError):
     "A child tag was duplicated"
 
+class NotACheckerError(XCheckError): pass
+class NotAnElementError(XCheckError): pass
+
+
 INIT = 2
 logging.addLevelName(INIT, "INIT")
 
 
-from utils import insert_node
+from utils import insert_node, get_elem
 class XCheck(object):
     """XCheck
     Generic validator tool for XML nodes and XML formatted text.
@@ -295,8 +304,7 @@ class XCheck(object):
                 for child in this.children:
                     if child.name == child_to_find:
                         this = child
-##            self.logger.debug(' Should be 2 values: %s', tokens)
-##            self.logger.debug(' last checker found: %s', this)
+
             return this
 
         else:
@@ -463,186 +471,29 @@ class XCheck(object):
         return self._normalized_value
 
 
-    def __call__(self, arg, check_children=None,
-                 normalize=False, verbose=False,
-                 as_string = False):
-        # Temporarily override the check_children attribute
-        self.logger.debug("checking %s", arg)
-        self.logger.debug("  normalize: %d", normalize)
-        self.logger.debug("  as_string: %d", as_string)
-        _cc = None
-        #self._normalizedResult = None
-        if check_children is not None:
-            _cc = self.check_children
-            self.check_children = check_children
+    def __call__(self, arg, check_children=None, normalize=False,
+            as_string=False):
 
-        # Create an element if possible
-        elem = None
+        check_children = check_children or False
+        res = []
         if ET.iselement(arg):
-            self.logger.debug("checking an Element")
-            elem = arg
-
-        if elem is None:
-            try:
-                self.logger.debug('converting to Element')
-                elem = ET.fromstring(arg)
-                arg = elem.text
-                self.logger.debug("element: %s" % ET.fromstring(elem))
-            except:
-                self.logger.debug("could not convert %s", elem)
-                pass
-
-        # validate element if appropriate
-        if elem is not None:
-            self.logger.debug(' validating element')
-            ok = elem.tag == self.name
-            if not ok:
-                text = "Element tag does not match check name"
-                raise MismatchedTagError(text)
-            content = elem.text
-            if content:
-                ok &= self.check_content(content.strip())
-            #~ Check the attributes
-            atts = dict(self.attributes) # create a copy to play with
-            self.logger.debug('checking attributes: %s', atts)
-
-            for key, val in elem.items():
-                ch = atts.pop(key, None)
-                #! element has attribute that the checker doesn't know about
-                if ch is None:
-                    self.logger.error("Unknown Attrbute: %s", key)
-                    raise UnknownXMLAttributeError(key)
-                #~ check the attribute with the checker
-                self.logger.debug('checking attribute %s with %s', ch.name, val)
-
-
-                # Work around the strangeness of DateTimeCheck (0.4.1)
-                if isinstance(ch, DatetimeCheck):
-                    ok &= ch(val, as_string=False)
-                else:
-                    ok &= ch(val)
-
-            #~ check for leftover required attributes
-            for att in atts.values():
-                self.logger.error('Leftover attribute %s', att.name)
-                if att.required:
-
-                    text = "missing required attribute (%s)" % att.name
-                    self.logger.error(text)
-                    raise UncheckedXMLAttributeError(text)
-
-
-            if self.check_children:
-                if self.ordered:
-                    self.logger.debug('Checking children in order')
-                    if elem.tag == self.name:
-                        self.logger.debug('checking %s with %s', elem.text, self.name)
-                        self.check_content(elem.text)
-
-                        if self.has_children:
-                            self.logger.debug('checking children of %s', self.name)
-                            children = iter(self.children)
-                            child = children.next()
-                            self.logger.debug('setting childe as %s', child.name)
-                            count = 0
-                            for e in elem:
-                                self.logger.debug('current element %s', e.tag)
-                                if child.name ==  e.tag:
-                                    self.logger.debug('%s matches %s', child.name, e.tag)
-                                    child(e, verbose = verbose)
-                                    count += 1
-                                else:
-                                    self.logger.debug("%s doesn't match %s", child.name, e.tag)
-
-                                    while child.name != e.tag:
-                                        self.logger.debug("counting number of %s elements", e.tag)
-                                        if count < child.min_occurs :
-                                            self.logger.error("Not enough %s children (found %d)", child.name, count)
-                                            raise MissingChildError(
-                                                "Not enough %s children (found %d)" % (child.name, count))
-                                        if count > child.max_occurs:
-                                            self.logger.error('Too many %s children', child.name)
-                                            raise UnexpectedChildError(
-                                                "Too many %s children" % child.name)
-                                        try:
-                                            child = children.next()
-                                            self.logger.log(INIT, "setting next child", child.name)
-                                            count = 0
-                                        except StopIteration:
-                                            text = "what is %s and what is it doing here?" % child.name
-                                            self.logger.error(text)
-                                            raise UnexpectedChildError(text)
-                                    child(e, verbose=verbose)
-                                    count += 1
-                            self.logger.debug('Checking count of %s elements', child.name)
-
-                            if count < child.min_occurs:
-                                text ="Not enough %s children" % child.name
-                                self.logger.error(text)
-                                raise MissingChildError(text)
-                            if count > child.max_occurs:
-                                text ="Too many %s children" % child.name
-                                self.logger.error(text)
-                                raise UnexpectedChildError(text)
-
-                            # AFTER CHECKING ALL ELEMENTS
-                            while True:
-                                self.logger.debug('looking for leftover required children')
-                                try:
-                                    child = children.next()
-                                    if child.min_occurs > 0:
-                                        self.logger.error('Missing %s child', child.name)
-                                        raise MissingChildError(
-                                            "Missing %s child" % child.name)
-                                except StopIteration:
-                                    break
-
-                            return True
-                        # checker has no children
-                        else:
-                            if len(elem) > 0:
-                                self.logger.error("Found child where non expected")
-                                raise UnexpectedChildError(
-                                    "Found child where none expected")
-                    else:
-                        raise MismatchedTagError(
-                            "checker and element don't match")
-                #~  UNORDERED SEARCHING
-                else:
-                    #~ print "unordered search"
-                    #~ check that all the elements are expected
-                    names = [x.name for x in self.children]
-                    #~ print names
-                    for e in list(elem):
-                        #~ print "%s in names" % e.tag, e.tag in names
-                        if e.tag not in names:
-                            raise UnexpectedChildError(
-                                "Unexpected %s element" % e.tag)
-
-                    # assuming that's good, do the checks and counting
-                    for child in self.children:
-                        count = 0
-                        #~ print "checking child", child.name
-                        for e in elem.findall(child.name):
-                            if verbose:
-                                print "checking {0}".format(child.name)
-                            child(e, verbose=verbose)
-                            count += 1
-                        if verbose:
-                            print "found {0} {1}".format(count, child.name)
-                        if count < child.min_occurs:
-                            raise MissingChildError(
-                                "Not enough %s children" % child.name)
-                        if count > child.max_occurs:
-                            raise UnexpectedChildError(
-                                "Too many %s children" % child.name)
+            res.extend(check_node(self, arg))
         else:
-            logging.debug(' validating non-element atom')
-            ok = self.check_content(arg)
+            try:
+                new_arg = get_elem(arg)
+                res.extend(check_node(self, new_arg))
+            except ValueError:
+                # no element, so try to check the content
+                try:
+                    self.check_content(arg)
+                except Exception as E:
+                    res.append(E)
 
-        #~ restore saved check_children value
-        if _cc is not None:
-            self.check_children = _cc
+        if res:
+            self.logger.debug('found %d errors', len(res))
+            for e in res:
+                self.logger.debug(' %s: %s', e.__class__.__name__, e.message)
+            raise res[0]
 
         if normalize:
             if not hasattr(self, '_normalized_value'):
@@ -650,7 +501,199 @@ class XCheck(object):
             else:
                 return self._normalized_value
         else:
-            return ok
+            return True
+
+
+
+
+##    def TEST__call__(self, arg, check_children=None,
+##                 normalize=False, verbose=False,
+##                 as_string = False):
+##        # Temporarily override the check_children attribute
+##        self.logger.debug("checking %s", arg)
+##        self.logger.debug("  normalize: %d", normalize)
+##        self.logger.debug("  as_string: %d", as_string)
+##        _cc = None
+##        #self._normalizedResult = None
+##        if check_children is not None:
+##            _cc = self.check_children
+##            self.check_children = check_children
+##
+##        # Create an element if possible
+##        elem = None
+##        if ET.iselement(arg):
+##            self.logger.debug("checking an Element")
+##            elem = arg
+##
+##        if elem is None:
+##            try:
+##                self.logger.debug('converting to Element')
+##                elem = ET.fromstring(arg)
+##                arg = elem.text
+##                self.logger.debug("element: %s" % ET.fromstring(elem))
+##            except:
+##                self.logger.debug("could not convert %s", elem)
+##                pass
+##
+##        # validate element if appropriate
+##        if elem is not None:
+##            self.logger.debug(' validating element')
+##            ok = elem.tag == self.name
+##            if not ok:
+##                text = "Element tag does not match check name"
+##                raise MismatchedTagError(text)
+##            content = elem.text
+##            if content:
+##                ok &= self.check_content(content.strip())
+##            #~ Check the attributes
+##            atts = dict(self.attributes) # create a copy to play with
+##            self.logger.debug('checking attributes: %s', atts)
+##
+##            for key, val in elem.items():
+##                ch = atts.pop(key, None)
+##                #! element has attribute that the checker doesn't know about
+##                if ch is None:
+##                    self.logger.error("Unknown Attrbute: %s", key)
+##                    raise UnknownXMLAttributeError(key)
+##                #~ check the attribute with the checker
+##                self.logger.debug('checking attribute %s with %s', ch.name, val)
+##
+##
+##                # Work around the strangeness of DateTimeCheck (0.4.1)
+##                if isinstance(ch, DatetimeCheck):
+##                    ok &= ch(val, as_string=False)
+##                else:
+##                    ok &= ch(val)
+##
+##            #~ check for leftover required attributes
+##            for att in atts.values():
+##                self.logger.error('Leftover attribute %s', att.name)
+##                if att.required:
+##
+##                    text = "missing required attribute (%s)" % att.name
+##                    self.logger.error(text)
+##                    raise UncheckedXMLAttributeError(text)
+##
+##
+##            if self.check_children:
+##                if self.ordered:
+##                    self.logger.debug('Checking children in order')
+##                    if elem.tag == self.name:
+##                        self.logger.debug('checking %s with %s', elem.text, self.name)
+##                        self.check_content(elem.text)
+##
+##                        if self.has_children:
+##                            self.logger.debug('checking children of %s', self.name)
+##                            children = iter(self.children)
+##                            child = children.next()
+##                            self.logger.debug('setting childe as %s', child.name)
+##                            count = 0
+##                            for e in elem:
+##                                self.logger.debug('current element %s', e.tag)
+##                                if child.name ==  e.tag:
+##                                    self.logger.debug('%s matches %s', child.name, e.tag)
+##                                    child(e, verbose = verbose)
+##                                    count += 1
+##                                else:
+##                                    self.logger.debug("%s doesn't match %s", child.name, e.tag)
+##
+##                                    while child.name != e.tag:
+##                                        self.logger.debug("counting number of %s elements", e.tag)
+##                                        if count < child.min_occurs :
+##                                            self.logger.error("Not enough %s children (found %d)", child.name, count)
+##                                            raise MissingChildError(
+##                                                "Not enough %s children (found %d)" % (child.name, count))
+##                                        if count > child.max_occurs:
+##                                            self.logger.error('Too many %s children', child.name)
+##                                            raise UnexpectedChildError(
+##                                                "Too many %s children" % child.name)
+##                                        try:
+##                                            child = children.next()
+##                                            self.logger.log(INIT, "setting next child", child.name)
+##                                            count = 0
+##                                        except StopIteration:
+##                                            text = "what is %s and what is it doing here?" % child.name
+##                                            self.logger.error(text)
+##                                            raise UnexpectedChildError(text)
+##                                    child(e, verbose=verbose)
+##                                    count += 1
+##                            self.logger.debug('Checking count of %s elements', child.name)
+##
+##                            if count < child.min_occurs:
+##                                text ="Not enough %s children" % child.name
+##                                self.logger.error(text)
+##                                raise MissingChildError(text)
+##                            if count > child.max_occurs:
+##                                text ="Too many %s children" % child.name
+##                                self.logger.error(text)
+##                                raise UnexpectedChildError(text)
+##
+##                            # AFTER CHECKING ALL ELEMENTS
+##                            while True:
+##                                self.logger.debug('looking for leftover required children')
+##                                try:
+##                                    child = children.next()
+##                                    if child.min_occurs > 0:
+##                                        self.logger.error('Missing %s child', child.name)
+##                                        raise MissingChildError(
+##                                            "Missing %s child" % child.name)
+##                                except StopIteration:
+##                                    break
+##
+##                            return True
+##                        # checker has no children
+##                        else:
+##                            if len(elem) > 0:
+##                                self.logger.error("Found child where non expected")
+##                                raise UnexpectedChildError(
+##                                    "Found child where none expected")
+##                    else:
+##                        raise MismatchedTagError(
+##                            "checker and element don't match")
+##                #~  UNORDERED SEARCHING
+##                else:
+##                    #~ print "unordered search"
+##                    #~ check that all the elements are expected
+##                    names = [x.name for x in self.children]
+##                    #~ print names
+##                    for e in list(elem):
+##                        #~ print "%s in names" % e.tag, e.tag in names
+##                        if e.tag not in names:
+##                            raise UnexpectedChildError(
+##                                "Unexpected %s element" % e.tag)
+##
+##                    # assuming that's good, do the checks and counting
+##                    for child in self.children:
+##                        count = 0
+##                        #~ print "checking child", child.name
+##                        for e in elem.findall(child.name):
+##                            if verbose:
+##                                print "checking {0}".format(child.name)
+##                            child(e, verbose=verbose)
+##                            count += 1
+##                        if verbose:
+##                            print "found {0} {1}".format(count, child.name)
+##                        if count < child.min_occurs:
+##                            raise MissingChildError(
+##                                "Not enough %s children" % child.name)
+##                        if count > child.max_occurs:
+##                            raise UnexpectedChildError(
+##                                "Too many %s children" % child.name)
+##        else:
+##            logging.debug(' validating non-element atom')
+##            ok = self.check_content(arg)
+##
+##        #~ restore saved check_children value
+##        if _cc is not None:
+##            self.check_children = _cc
+##
+##        if normalize:
+##            if not hasattr(self, '_normalized_value'):
+##                raise self.error("%s has no normalized value" % self.name)
+##            else:
+##                return self._normalized_value
+##        else:
+##            return ok
 
     def insert_node(self, parent, child):
         """insert_node(parent, child)
@@ -844,6 +887,199 @@ from dictwrap import *
 
 from datetimecheck import DatetimeCheck
 
+def match_checker_to_node(func):
+    """Ensures a check_ function has a checker that can check the node"""
+    def newfunc(checker, node):
+        if checker.name != node.tag:
+            return  [ MismatchedTagError(
+                    '{0} checker given {1} node'.format(
+                        checker.name, node.tag))]
+        else:
+            return func(checker, node,)
+    return newfunc
+
+def validate_inputs(func):
+    """Ensures a check_x function has a checker and an Element"""
+    def newfunc(checker, node):
+        if not isinstance(checker, XCheck):
+            return [NotACheckerError("{0} is not an XCheck instance".format(checker))]
+        if not ET.iselement(node):
+            return [NotAnElementError("{0} is not an Element".format(node))]
+        return func(checker, node)
+    return newfunc
+
+@validate_inputs
+@match_checker_to_node
+def check_attributes(checker, node,):
+    """Checks the attributes are all right"""
+    error_list = []
+    node_atts = list(node.attrib)
+##    print node_atts
+    for att in checker.attributes:
+        node_att = node.get(att)
+        checker.logger.debug('Checking attribute %s with value %s', att, node_att)
+        att_check = checker.get(att)
+
+
+        if att_check.required and node_att is None:
+            error_list.append(MissingAttributeError(
+                "{0} missing required '{1}' attribute".format(
+                    checker.name, att)))
+        elif node_att is None:
+            continue
+        else:
+            try:
+                att_check.check_content(node_att)
+            except Exception as E:
+                error_list.append(E)
+        if att in node_atts:
+            node_atts.remove(att)
+
+
+    for na in node_atts:
+        error_list.append(UnknownXMLAttributeError(
+            "'{0}' attribute found in {1} node".format(
+                na, node.tag)))
+
+    return error_list
+
+@validate_inputs
+@match_checker_to_node
+def check_node_contents(checker, node):
+    """checks the content of a node"""
+    error_list = []
+    try:
+        checker.check_content(node.text) #calling checker(node) checks attributes
+    except Exception as E:
+        error_list.append(E)
+    return error_list
+
+@validate_inputs
+@match_checker_to_node
+def check_node_ordered_children(checker, node):
+    """confirms nodes children are in order.
+    Does not check those children
+    """
+    error_list = []
+    expected = iter((child.name, child.min_occurs, child.max_occurs) for child in checker.children)
+
+
+    known = iter(node)
+    try:
+        this_known = known.next()
+        this_expected = expected.next()
+    except StopIteration:
+        this_known = None
+
+    ok = this_known is not None
+    while ok:
+
+        count = 0
+        current_tag = this_known.tag
+        #
+        if current_tag not in checker.child_names:
+            error_list.append(UnexpectedChildError(
+                'Unexpected "{0}" child found in "{1}" node'.format(
+                    current_tag, checker.name)))
+        #
+        while this_expected[0] == this_known.tag:
+            count += 1
+            try:
+                this_known = known.next()
+            except StopIteration:
+                ok = False
+                this_known = None
+                break
+
+        if count < this_expected[1]:
+            error_list.append(MissingChildError(
+                'Not enough "{0}" children in {1} node'.format(
+                    this_expected[0], current_tag)))
+        if count > this_expected[2]:
+            error_list.append(UnexpectedChildError(
+                'Too many "{0}" children in {1} node'.format(
+                    this_expected[0], current_tag)))
+
+        if this_known is None:
+            break
+
+        # move through all the expected children until we match this_known.tag
+        keep_feeding = True
+        while keep_feeding:
+            try:
+                this_expected = expected.next()
+                if this_expected[0] == this_known.tag:
+                    keep_feeding = False
+                elif this_expected[1] > 0:
+                    error_list.append(MissingChildError(
+                        'Missing "{0}" children in {1} node'.format(
+                            this_expected[0], node.tag)))
+            except StopIteration:
+                keep_feeding = False
+                ok = False
+
+    if this_known is not None:
+        error_list.append(UnexpectedChildError(
+            "Unexpected child {0}".format(this_known.tag)))
+        for n in known:
+            error_list.append(UnexpectedChildError(
+            "Unepected child {0}".format(n.tag)))
+
+    for this in expected:
+        if this[1]:
+            error_list.append(MissingChildError(
+                'Missing "{0}" child in "{1}" node'.format(this[0],node.tag)))
+
+    return error_list
+
+@validate_inputs
+@match_checker_to_node
+def check_node_unordered_children(checker, node):
+    error_list = []
+
+    # get a dictionary of min_occurs, max_occurs pairs
+    limits = {}
+    for child in checker.children:
+        limits[child.name] = (child.min_occurs, child.max_occurs)
+
+    for child_name in limits:
+        real_kids = list(node.findall(child_name))
+        if len(real_kids) < limits[child_name][0]:
+            error_list.append(MissingChildError(
+                "Not enough '{0}' children in '{1}' node".format(
+                    child_name, checker.name)))
+
+        if len(real_kids) > limits[child_name][1]:
+            error_list.append(UnexpectedChildError(
+                "Too many '{0}' children in '{1}' node".format(
+                    child_name, checker.name)))
+
+    return error_list
+
+@validate_inputs
+@match_checker_to_node
+def check_node(checker, node):
+    ""
+    error_list = []
+
+    error_list.extend(check_attributes(checker, node))
+    error_list.extend(check_node_contents(checker, node))
+
+    if checker.ordered:
+        error_list.extend(check_node_ordered_children(checker, node))
+    else:
+        error_list.extend(check_node_unordered_children(checker, node))
+
+    for child in node:
+        child_check = checker.get(child.tag)
+        if child_check is None:
+            error_list.append(UnexpectedChildError(
+                'Undexpected "{0}" child in "{1}" node'.format(
+                    child.tag, node.tag)))
+        error_list.extend(check_node(child_check, child))
+
+
+    return error_list
 
 if __name__=='__main__':
     from  utils import debug_formatter, indent

@@ -82,6 +82,12 @@ The Master Class
 
         Returs true if the xcheck object expects attributes
 
+    .. attribute:: logger
+
+        Returns a :class:`logging.Logger` instance named after this checker.
+        The name is the checker name with "Check" appended.
+
+
 
 Creation Methods
 ^^^^^^^^^^^^^^^^
@@ -199,7 +205,7 @@ Calling an :class:`xcheck` object validates whatever is passed to it:
 * an `ElementTree.Element` object
 * an XML-formatted string
 
-.. method:: xcheck.__call__(item [, check_children, normalize, verbose, as_string])
+.. method:: xcheck.__call__(item [, check_children, normalize, as_string])
 
     Validates the data
 
@@ -207,7 +213,6 @@ Calling an :class:`xcheck` object validates whatever is passed to it:
                                 current call.
     :param bool normalize: returns a normalized value intstead of
                            **True** or **False**
-    :param boolean verbose: prints a report as the checker processes
     :param boolean as_string: return a string representation of the
                               checked value instead of the normalized value.
 
@@ -215,9 +220,9 @@ Calling an :class:`xcheck` object validates whatever is passed to it:
         The `normalize` and `as_string` parameters do nothing with XCheck
         objects. They are useful for the subclasses.
 
-    .. note::
-        The `verbose` parameter will be relpaced in future, relying on the
-        :py:mod:`logging` module.
+    .. deprecated:: 0.7.1
+        The `verbose` parameter was removed in version 0.7.1. The
+        :py:mod:`logging` module is now in place.
 
 __call__ helper methods
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -239,4 +244,12 @@ __call__ helper methods
        of the item being normalized.
 
 
+Logging with Checkers
+^^^^^^^^^^^^^^^^^^^^^
 
+The logging module has been integrated into XCheck. Each checker has a default
+logger accessible through the :attr:`XCheck.logger` attribute.
+
+The :mod:`XCheck` module also creates a new logging level named ``INIT``. It
+has a logging level of 2. The INIT messages are created during the creation of
+the checker objects.

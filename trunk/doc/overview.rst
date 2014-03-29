@@ -17,7 +17,7 @@ version 1.1.3. Most features can be used with other versions of ElementTree.
         * ElementTree.Element objects
         * Text representing an ElementTree.Element object
 
-The :mod:`xchecx` module makes a few assumtions about |xml|-data, which, as
+The :mod:`xcheck` module makes a few assumtions about |xml|-data, which, as
 I see it, as a few limitations:
 
 * No Meaningful Mixed Content: an element has either text or children,
@@ -33,7 +33,7 @@ I see it, as a few limitations:
 :class:`XCheck` objects are called directly to check data::
 
     >>> from xcheck import TextCheck
-    >>> nameCh = TextCheck('name', minLength = 2)
+    >>> nameCh = TextCheck('name', min_length = 2)
     >>> nameCh('Josh')
     True
     >>> nameCh('J')
@@ -60,18 +60,18 @@ I see it, as a few limitations:
 The :mod:`xcheck` module defines the following classes:
 
 =============== ===========================================
-Checker 	Data to be checked
+Checker 	    Data to be checked
 =============== ===========================================
-XCheck		The base checker, used for parent XML nodes
-TextCheck	Generic texts
-EmailCheck	Email Addresses
-URLCheck	URLs
-IntCheck	Integers
+XCheck		    The base checker, used for parent XML nodes
+TextCheck	    Generic texts
+EmailCheck	    Email Addresses
+URLCheck	    URLs
+IntCheck	    Integers
 DecimalCheck	Floats
 DatetimeCheck	Dates and times
-BoolCheck	Boolean values
+BoolCheck	    Boolean values
 SelectionCheck	Choice of various strings
-ListCheck	Lists of strings with filtering
+ListCheck	    Lists of strings with filtering
 =============== ===========================================
 
 Other Helpful Things

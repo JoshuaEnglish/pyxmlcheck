@@ -26,7 +26,11 @@ The :mod:`xcheck` module defines the following execptions:
 
     Occurs for general XML attribute related issuse
 
-.. exception:: UncheckedAttributeError
+.. exception:: MissingAttribuetError
+
+    Occurs when a required attribute was not found
+
+.. exception:: UncheckedXMLAttributeError
 
     Occurs when an XML Element has an attribute the checker didn't touch
 
@@ -37,3 +41,16 @@ The :mod:`xcheck` module defines the following execptions:
 .. exception:: UnexpectedChildError
 
     Raised when the checker encounters a child element it doesn't know about.
+
+.. exception:: DuplicateTagError
+
+    Rased when a checker is asked to add child checker with the same tag
+    as a previous child.
+
+.. exception:: NotACheckerError
+
+    Raised during the call, or by the :func:`check_node` function.
+
+.. exception:: NotAnElementError
+
+    Raised during the call, or by the :func:`check_node` function.

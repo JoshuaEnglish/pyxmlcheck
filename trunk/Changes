@@ -9,7 +9,12 @@ Bug Fixes
 
 * Fixed bug #12 -- Selection Check didn't return proper values when a callback
   is used. Applied same fix to ListCheck. (Rev. 33)
-
+* Updated unittests to replace "fail" checks with appropriate "assert" checks
+* cleaned up some of the multiline logging messages
+* Cleaned up the main XCheck.__call__ method using `check_node`,
+  `check_attributes`, `check_node_contents`, `check_node_ordered_children`,
+  and `check_node_unordered_children`.
+* Removed the verbose parameter to calling XCheck objects
 
 Release 0.7.1 - March 22, 2014
 ------------------------------
@@ -17,7 +22,8 @@ Release 0.7.1 - March 22, 2014
 Bug Fixes
 ^^^^^^^^^
 
-* Fixed bug #10 - SelectionCheck now validates None if `allow_none` or ``required` is true
+* Fixed bug #10 - SelectionCheck now validates None if `allow_none` or
+  ``required`` is true
 * Completely rewrote XCheck.xpath_to and XCheck.get methods
 * Completely rewrote XCheck.insert_node method
 
@@ -60,7 +66,8 @@ Release 0.6.6 - April 15, 2013
 ------------------------------
 
 * renamed xcheck submodule core
-* Fixed bug 4 -- :class:`IntCheck` was using _normalize instead of normalize as keyword argument
+* Fixed bug 4 -- :class:`IntCheck` was using _normalize instead of normalize
+  as keyword argument
 
 Release 0.6.5 - March 9, 2013
 -----------------------------
