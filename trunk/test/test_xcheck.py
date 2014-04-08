@@ -961,6 +961,18 @@ class DatetimeCheckTC(unittest.TestCase):
         self.assertRaises(d.error, d, 'Oct 9')
         self.assertRaises(d.error, d, 'Nov 1')
 
+    def test_month_and_day_only_two(self):
+        d = DatetimeCheck('mday', format="%m-%d")
+        self.assertTrue(d('01-01'))
+        self.assertTrue(d('<mday>01-01</mday>'))
+        self.assertTrue(d('1-1'))
+
+    def test_month_and_day_only_as_attribute(self):
+        x = XCheck('a')
+        x.add_attribute(DatetimeCheck('d', format='%m-%d'))
+        self.assertTrue(x('<a d="01-01"/>'))
+        self.assertTrue(x(ET.fromstring('<a d="01-01"/>')))
+
     def test_format_lists(self):
         "DatetimeCheck() handles a list of formats"
         d = DatetimeCheck('formatlist', formats=['%b %d', '%b %d %Y'])
@@ -978,6 +990,12 @@ class DatetimeCheckTC(unittest.TestCase):
         self.assertTrue(d('<date>none</date>'),
             "DatetimeCheck() fails to accept 'none' as node text")
         self.assertTrue(d('none'), "Fails to accept 'none' as text")
+
+    def test_dummy_with_format(self):
+        d = DatetimeCheck('date', format="%m-%d-%Y")
+        self.assertEqual(d.dummy_value(), '01-01-1900')
+        d = DatetimeCheck('date', format="%m%d")
+        self.assertEqual(d.dummy_value(), '0101')
 
 
 class RenameTC(unittest.TestCase):
@@ -1197,6 +1215,40 @@ class XWrapTC(unittest.TestCase):
         self.w._set_elem_att('name','id', 2)
         self.assertEqual(self.w._get_att('id'), 2,
             "Didn't change element attribute")
+
+    def test_get_elem_value_normalized(self):
+        ch = XCheck('a')
+        ch.add_child(IntCheck('t', allow_none=True, min_occurs=0))
+        w = Wrap(ch, '<a />')
+        self.assertEqual(w._get_elem_value('t'), '')
+        self.assertEqual(w._get_elem_value('t', normalize=True), '')
+        w = Wrap(ch, '<a><t>3</t></a>')
+        self.assertEqual(w._get_elem_value('t'), 3)
+        self.assertEqual(w._get_elem_value('t', as_string=True), '3')
+
+    def test_get_elem_datetime_normalized(self):
+        ch = XCheck('a')
+        ch.add_child(DatetimeCheck('d', allow_none=True, format="%m/%d/%Y"))
+        w = Wrap(ch, '<a><d>4/3/2013</d></a>')
+        self.assertIsInstance(w._get_elem_value('d', as_datetime=True), datetime.datetime)
+        self.assertIsInstance(w._get_elem_value('d', as_string=True), basestring)
+
+    def test_get_elem_att_datetime_normalized(self):
+        ch = XCheck('a')
+        t = TextCheck('t')
+        t.add_attribute(DatetimeCheck('d', format="%m/%d/%Y"))
+        ch.add_child(t)
+        w = Wrap(ch, '<a><t d="4/3/2014">Hi</t></a>')
+        self.assertIsInstance(w._get_elem_att('t', 'd', as_datetime=True), datetime.datetime)
+        self.assertIsInstance(w._get_elem_att('t', 'd', as_string=True), basestring)
+
+    def test_set_att_selection(self):
+        ch = XCheck('a')
+        ch.add_attribute(SelectionCheck('s', values='one two'.split()))
+        ch('<a s="one" />')
+        w = Wrap(ch)
+        w._set_att('s','one')
+        self.assertEqual(w._get_att('s'), 'one')
 
 class XChildWrapTC(unittest.TestCase):
     def setUp(self):
@@ -1629,6 +1681,14 @@ class LoaderTC(unittest.TestCase):
         self.assertEqual(ch.max_datetime,datetime.datetime.max)
         self.assertIsInstance(ch, DatetimeCheck)
 
+    def test_datetime_custom(self):
+        ch = load_checker('<datetime name="date" format="%m-%d" />')
+        self.assertTrue(ch('01-01'))
+        self.assertTrue(ch('<date>01-01</date>'))
+        self.assertTrue(ch(ET.fromstring('<date>01-01</date>')))
+        self.assertRaises(XCheckError, ch, '13-01')
+        self.assertTrue(ch('1-1'))
+
     def test_attributes(self):
         text= """<xcheck name="person">
         <attributes>
@@ -1695,6 +1755,17 @@ class TestWrap3(unittest.TestCase):
         self.assertEqual(empty_example._get_elem_value('item'),'one')
         self.assertIsInstance(empty_example._elem.find('item'), ET.Element)
 
+    def test_wrap_datetime_normalize(self):
+        check = load_checker("""<xcheck name='a'>
+            <attributes>
+                <datetime name="d" format="%m/%d/%Y" />
+            </attributes>
+            </xcheck>""" )
+        wrap = Wrap(check, '<a d="09/07/1971" />')
+        self.assertIsInstance(wrap._get_att('d', True, as_datetime=True), datetime.datetime)
+
+
+
 class TestListRequirements(unittest.TestCase):
     def setUp(self):
         contactCheck = XCheck('contact')
@@ -1715,7 +1786,7 @@ class TestListRequirements(unittest.TestCase):
     def test_list_requirement(self):
         reqs = utils.list_requirements(self.ch)
         self.assertListEqual(reqs,
-            [('class',), ('name',), ('contact', 'street'), ('city',)],
+            [('class',), ('name',), ('address', 'street'), ('city',)],
             "list_requirements did not create proper list")
 
 # tackle Issue 8

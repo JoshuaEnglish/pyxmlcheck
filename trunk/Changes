@@ -14,7 +14,16 @@ Bug Fixes
 * Cleaned up the main XCheck.__call__ method using `check_node`,
   `check_attributes`, `check_node_contents`, `check_node_ordered_children`,
   and `check_node_unordered_children`.
+* Fixed bug in utils.list_requirements
+
+Other Changes
+^^^^^^^^^^^^^
+
 * Removed the verbose parameter to calling XCheck objects
+* Added `as_date` to DatetimeCheck.__call__ to return a datetime.date object
+* Added utils.get_minimum_keys
+* Added xcheck.dotted_path_to(tag), separating it from the 'xpath_to' method
+* Added `as_string` option to ListCheck
 
 Release 0.7.1 - March 22, 2014
 ------------------------------

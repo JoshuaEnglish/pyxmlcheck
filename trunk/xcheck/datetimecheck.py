@@ -22,11 +22,13 @@ class DatetimeCheck(XCheck):
     Additional attributes in __call__
 
     :param as_datetime: normalizes the value to a datetime.datetime object
+    :param as_date: normalizes the value to a datetime.date object
     :param as_struct: normalizes the value to atime.struct_time object
     :param as_string: normalzes the value to a string
 
     DateTimeCheck ignores the basic use of normalize. If any of as_datetime,
-        as_struct, or as_string are true, normalize will be set to True.
+        as_date, as_struct, or as_string are true, normalize will be
+        set to True.
 
     """
 
@@ -60,6 +62,7 @@ class DatetimeCheck(XCheck):
         self.as_datetime =  False
         self.as_struct = False
         self.as_string =  True
+        self.as_date = False
 
     def check_content(self, item):
         ok = False
@@ -67,15 +70,18 @@ class DatetimeCheck(XCheck):
         is_none = False
 
         if self.format:
+            self.logger.debug("Trying %s with format %s", item, self.format)
             try:
                 parsed_date = datetime.datetime.strptime(str(item), self.format)
                 self._normalized_value = self.normalize_content(parsed_date)
                 ok = True
             except Exception:
+                self.logger.debug('Error, but will try again')
                 pass # if this fails, will try a different method
 
         if not ok:
             for fmt in self.formats:
+                self.logger.debug('Trying %s with format %s', item, fmt)
                 try:
                     parsed_date = datetime.datetime.strptime(str(item), fmt)
                     self._normalized_value = self.normalize_content(parsed_date)
@@ -90,10 +96,12 @@ class DatetimeCheck(XCheck):
             is_none = True
 
         if ok is False:
-            raise self.error, "Cannot parse %s as date" % item
+            self.logger.error("Cannot parse %s as date" % item)
+            raise self.error("Cannot parse %s as date" % item)
 
         if not is_none and not (
                 self.min_datetime <= parsed_date <= self.max_datetime):
+            self.logger.error("Date %s out of bounds", parsed_date)
             raise self.error("Date out of bounds")
 
         return ok
@@ -102,9 +110,12 @@ class DatetimeCheck(XCheck):
         self.as_datetime = kwargs.pop('as_datetime', False)
         self.as_struct = kwargs.pop('as_struct', False)
         self.as_string = kwargs.pop('as_string', False)
+        self.as_date = kwargs.pop('as_date', False)
+
+
 
         kwargs['normalize'] = any(
-            [self.as_datetime, self.as_struct, self.as_string])
+            [self.as_datetime, self.as_struct, self.as_string, self.as_date])
 
         return XCheck.__call__(self, item, **kwargs)
 
@@ -112,13 +123,19 @@ class DatetimeCheck(XCheck):
         #print 'normalizing', item
         if self.as_datetime:
             return item #~ should already be a date time object
+
+        elif self.as_date:
+            return item.date()
+
         elif self.as_struct:
             return item.timetuple() #~ should
+
         else:
             if self.format:
                 return item.strftime(self.format)
             else:
                 return item.strftime(self.formats[0])
+
         raise ValueError("cannot normalize %s" % item)
 
     def dummy_value(self):
@@ -217,6 +234,21 @@ class DatetimeCheckTC(unittest.TestCase):
         self.failUnless(d('<date>none</date>'),
             "DatetimeCheck() fails to accept 'none' as node text")
         self.failUnless(d('none'), "Fails to accept 'none' as text")
+
+    def test_month_and_day_only_two(self):
+        d = DatetimeCheck('mday', format="%m-%d")
+        self.assertTrue(d('01-01'))
+        self.assertTrue(d('<mday>01-01</mday>'))
+        self.assertTrue(d('1-1'))
+        self.assertIsInstance(d('1-1', as_datetime=True), datetime.datetime)
+        self.assertIsInstance(d('1-1', as_date=True), datetime.date)
+
+    def test_month_and_day_only_as_attribute(self):
+        x = XCheck('a')
+        x.add_attribute(DatetimeCheck('d', format='%m-%d'))
+        self.assertTrue(x('<a d="01-01"/>'))
+
+##        self.assertTrue(x(ET.fromstring('<a d="01-01"/>')))
 
 if __name__=='__main__':
 ##    logger = logging.getLogger()

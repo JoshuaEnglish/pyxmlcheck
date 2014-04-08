@@ -68,20 +68,19 @@ def list_requirements(checker, prefix=None):
     Returns a list of tuples
     """
     res = []
+    prefix = prefix or ()
     for att in checker.attributes.values():
         if att.required:
-            if prefix:
-                res.append(prefix + (att.name,))
-            else:
-                res.append((att.name,))
+            res.append(prefix + (att.name,))
+
 
     for child in checker.children:
-        if child.has_attributes:
-            _prefix = (prefix + checker.name) if prefix else (checker.name)
+        if child.has_attributes and not child.has_children:
+            _prefix = (prefix + (child.name,))
             for att in child.attributes.values():
-                res.append(prefix + (att.name,))
+                res.append(_prefix + (att.name,))
         if child.has_children:
-            _prefix = (prefix + checker.name) if prefix else (checker.name,)
+            _prefix = (prefix + (child.name,))
             res.extend(list_requirements(child, _prefix))
         elif child.min_occurs > 0:
             if prefix:
@@ -90,6 +89,28 @@ def list_requirements(checker, prefix=None):
                 res.append((child.name,))
 
 
+    return res
+
+def get_minimum_keys(checker):
+    res = {}
+    count = 0
+    for key in checker.get_all_paths():
+        idx = 1
+        found_one = False
+        tokens = key.split('.')[1:]
+        while idx <= len(tokens):
+            test_key = '.'.join(tokens[-idx:])
+            test_path = checker.xpath_to(test_key)
+            if test_path:
+                res[test_key] = test_path
+                found_one = True
+                break
+            else:
+                idx += 1
+
+        if not found_one:
+            if tokens:
+                res['.'.join(tokens)] = xpath_to(key)
     return res
 
 #-------------------------------------------------------------------------------
@@ -234,3 +255,93 @@ def insert_child_into_node(checker, parent, child):
 
     parent.insert(ins, child)
     return True
+
+def get_value(checker, elem, tag, nth=0, normalize=True, **kwargs):
+    xpath = checker.xpath_to(tag)
+    check = checker.get(tag)
+    child = elem.find(xpath)
+    if child is None:
+        return None
+
+    if checker.is_att(tag):
+        xpath = xpath[:xpath.find('[')]
+        child = elem.find(xpath)
+        return check(child.get(tag.split('.')[-1]), normalize=normalize, **kwargs)
+    else:
+        return check(child.text, normalize=normalize, **kwargs)
+
+def set_value(checker, elem, tag, value, nth=0):
+    xpath = checker.xpath_to(tag)
+    check = checker.get(tag)
+    dotted = checker.dotted_path_to(tag)
+
+    # If the child was created by an earlier call, it has no attributes
+    # so look for the child node without regard to attributes
+    if checker.is_att(tag):
+        child = elem.find(checker.xpath_to(dotted.split('.')[-2]))
+    else:
+        child = elem.find(xpath)
+
+    if child is None:
+        if checker.is_att(tag):
+            child = ET.Element(dotted.split('.')[-2])
+            checker.insert_node(elem, child)
+        else:
+            child = ET.Element(dotted.split('.')[-1])
+            checker.insert_node(elem, child)
+
+    val = check(value, normalize=True, as_string=True)
+    if checker.is_att(tag):
+        child.set(check.name, val)
+    else:
+        child.text = val
+
+
+if __name__=='__main__':
+    from loader import load_checker
+    from core import check_node
+    story = load_checker("""<xcheck name="story">
+    <attributes>
+        <text name="code" required="true"/>
+        <decimal name="revision" required="false"/>
+    </attributes>
+    <children>
+        <text name="title" />
+        <text name="pasttitle" min_occurs="0" max_occurs="99"/>
+        <int name="wordcount" />
+        <selection name="status"
+            values="treatment, draft, critique, on_market, sold, reprint, retired" />
+        <list name="genres" min_occurs="0"
+            values="sf, fantasy, horror, lit, punk, realism"/>
+        <list name="keywords" min_occurs="0"/>
+        <text name="file" min_occurs="0"/>
+        <xcheck name="history" min_occurs="0">
+            <text name="item" min_occurs="0" max_occurs="99">
+                <attributes>
+                    <datetime name="date"/>
+                </attributes>
+            </text>
+        </xcheck>
+        <text name="plot" min_occurs="0" />
+    </children>
+</xcheck>
+""")
+    print story
+    charlie = ET.fromstring("""<story code="charlie" >
+    <title>Uncle Charlie Goes Swimming</title>
+    <wordcount>5000</wordcount>
+    <status>draft</status>
+    <genres>fantasy</genres>
+  </story>"""
+  )
+    h = logging.StreamHandler()
+    h.setFormatter(debug_formatter)
+    logging.getLogger().addHandler(h)
+##    logging.getLogger().setLevel(logging.DEBUG)
+##    for error in check_node(story, charlie):
+##        print error
+##    print '--'
+    print story(charlie)
+    for dotted in ['code', 'title','wordcount', 'genres']:
+        val = get_value(story, charlie, dotted, as_string=True)
+        print dotted, val, type(val)
