@@ -350,9 +350,7 @@ class XCheck(object):
 
         return res
 
-
-    # attempted on 3-18-2014
-    def xpath_to(self, tag):
+    def dotted_path_to(self, tag):
         paths = self.get_all_paths()
 
         def is_in(path):
@@ -365,9 +363,16 @@ class XCheck(object):
             possibilities = filter(lambda x: x.endswith('.%s' % tag), possibilities)
             self.logger.debug('cutting possibilities down to: %s', possibilities)
 
+        if possibilities:
+            return possibilities[0]
 
-        if len(possibilities) == 1:
-            tokens = possibilities[0].split('.')
+    # attempted on 3-18-2014
+    def xpath_to(self, tag):
+
+        dotted_path = self.dotted_path_to(tag)
+
+        if dotted_path:
+            tokens = dotted_path.split('.')
             if self._is_att(tokens[-1]):
                 res = '/'.join(tokens[:-1]) + "[@%s]" % tokens[-1]
             else:

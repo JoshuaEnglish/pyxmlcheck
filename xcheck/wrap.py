@@ -4,12 +4,12 @@ from operator import attrgetter, methodcaller
 from core import ET
 from utils import get_elem
 
-class Descriptor(object):
-    def __init__(self, instance, name):
-        self._instance = instance
-        self._name = name
-    def __get__(self):
-        return self._instance._get_elem_value(self.name)
+##class Descriptor(object):
+##    def __init__(self, instance, name):
+##        self._instance = instance
+##        self._name = name
+##    def __get__(self):
+##        return self._instance._get_elem_value(self.name)
 
 class Wrap(object):
     """Wrap(checker, element)
@@ -49,7 +49,7 @@ class Wrap(object):
 ##
 ##                    setattr(self, child.name, Descriptor(self, child.name))
 
-    def _get_att(self, att_name, normalize=True):
+    def _get_att(self, att_name, normalize=True, **kwargs):
         """_get_att(name, [normalize=True]
         Return the value of the node attribute"""
         if att_name not in self._checker.tokens():
@@ -57,9 +57,16 @@ class Wrap(object):
 
         attcheck = self._checker.get(att_name)
 
-        return attcheck(self._elem.get(att_name), normalize=normalize)
+        return attcheck(self._elem.get(att_name), normalize=normalize, **kwargs)
 
-    def _get_elem_value(self, tag_name, nth = 0, normalize=True):
+    def _set_att(self, att_name, value):
+        if att_name not in self._checker.tokens():
+            raise ValueError, "%s is not a valid attribute name" % att_name
+        attcheck = self._checker.get(att_name)
+        val = attcheck(value, normalize=True, as_string=True)
+        return self._elem.set(att_name, val)
+
+    def _get_elem_value(self, tag_name, nth = 0, normalize=True, **kwargs):
         """get_list_elem_text(tag_name, nth, normalize)
         Return the text value of the nth occurence of the element tag_name.
         nth is a zero-based index.
@@ -91,7 +98,7 @@ class Wrap(object):
 
         # if nth isn't a valid integer this will raise a type error
         if normalize:
-            return childcheck(children[nth].text, normalize=normalize)
+            return childcheck(children[nth].text, normalize=normalize, **kwargs)
         else:
             return children[nth].text
 
@@ -124,7 +131,7 @@ class Wrap(object):
         children[nth].text = str(value)
 
 
-    def _get_elem_att(self, tag, att, nth=0, normalize=True):
+    def _get_elem_att(self, tag, att, nth=0, normalize=True, **kwargs):
         """_get_elem_att(tag, att)
         returns the attribute value for the given tag.
         """
@@ -151,7 +158,7 @@ class Wrap(object):
         if elem.get(att) is None:
             return None
         else:
-            return attcheck(elem.get(att), normalize=normalize)
+            return attcheck(elem.get(att), normalize=normalize, **kwargs)
         #~ return elem.get(att)
 
     def _set_elem_att(self, tag, att, value, nth = 0):

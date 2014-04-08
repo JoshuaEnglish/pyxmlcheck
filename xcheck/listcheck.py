@@ -171,9 +171,13 @@ class ListCheck(XCheck):
         if self.max_items in [ -1, INF]:
             self.max_items = INF
 
+        self.as_string = self._boolCheck(
+            kwargs.pop('as_string', False),
+            normalize=True)
+
         XCheck.__init__(self, name, **kwargs)
         self._object_atts.extend(['delimiter', 'values', 'allow_duplicates',
-            'min_items', 'max_items', 'ignore_case'])
+            'min_items', 'max_items', 'ignore_case', 'as_string'])
 
     @property
     def values(self):
